@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m with context %}
 {% block title %}Importacion {{ imp.id }}{% endblock %}
-{% block page_title %}Importar datos{% endblock %}
+{% block page_title %}Proceso de evaluación{% endblock %}
 {% block content %}
-{{ m.page_head(imp.tipo_nombre, imp.nombre_archivo ~ ' · ' ~ (imp.fecha_importacion|fecha(true)), [('Importar', url_for('importacion.index')), ('Importacion #' ~ imp.id, None)]) }}
+{{ m.page_head(imp.tipo_nombre, imp.nombre_archivo ~ ' · ' ~ (imp.fecha_importacion|fecha(true)), [('Proceso de evaluación', url_for('importacion.index')), ('Importacion #' ~ imp.id, None)]) }}
 <div class="kpis">
     <div class="kpi"><span class="kpi-label">Semestre</span><span class="kpi-value">{{ imp.semestre.codigo }}</span></div>
     <div class="kpi"><span class="kpi-label">Leidos</span><span class="kpi-value">{{ imp.registros_encontrados }}</span></div>

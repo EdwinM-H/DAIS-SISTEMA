@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m with context %}
 {% block title %}Resultado de importacion{% endblock %}
-{% block page_title %}Importar datos{% endblock %}
+{% block page_title %}Proceso de evaluación{% endblock %}
 {% block content %}
-{{ m.page_head('Importacion finalizada', tipo_nombre ~ ' · ' ~ filename ~ ' · ' ~ semestre_actual.codigo, [('Importar', url_for('importacion.index')), ('Resultado', None)]) }}
+{{ m.page_head('Importacion finalizada', tipo_nombre ~ ' · ' ~ filename ~ ' · ' ~ semestre_actual.codigo, [('Proceso de evaluación', url_for('importacion.index')), ('Resultado', None)]) }}
 <div class="kpis">
     <div class="kpi"><span class="kpi-label">Registros leidos</span><span class="kpi-value">{{ result.encontrados }}</span></div>
     <div class="kpi kpi-green"><span class="kpi-label">Nuevos</span><span class="kpi-value">{{ result.importados }}</span></div>
@@ -24,7 +24,7 @@
 <div class="callout green">Todos los registros se procesaron sin errores.</div>
 {% endif %}
 <div class="form-actions mt">
-    <a class="btn" href="{{ url_for('importacion.index') }}">Nueva importacion</a>
-    <a class="btn btn-primary" href="{{ url_for('ranking.index') }}">{{ m.icon('trophy') }} Ver ranking</a>
+    <a class="btn btn-primary" href="{{ url_for('importacion.index') }}">{{ m.icon('target') }} Volver al proceso</a>
+    {% if tipo == 'ficha_integral' %}<a class="btn" href="{{ url_for('ranking.index') }}">{{ m.icon('trophy') }} Ver ranking</a>{% endif %}
 </div>
 {% endblock %}

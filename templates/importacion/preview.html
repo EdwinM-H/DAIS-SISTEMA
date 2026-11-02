@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m with context %}
 {% block title %}Vista previa{% endblock %}
-{% block page_title %}Importar datos{% endblock %}
+{% block page_title %}Proceso de evaluación{% endblock %}
 {% block content %}
-{{ m.page_head('Vista previa: ' ~ tipo_nombre, filename ~ ' → semestre ' ~ semestre_actual.codigo, [('Importar', url_for('importacion.index')), ('Vista previa', None)]) }}
+{{ m.page_head('Vista previa: ' ~ tipo_nombre, filename ~ ' → semestre ' ~ semestre_actual.codigo, [('Proceso de evaluación', url_for('importacion.index')), ('Vista previa', None)]) }}
 
 {% if preview.error %}
 <div class="alert alert-danger">{{ preview.error }}</div>
@@ -48,18 +48,66 @@
     </div>
 </div>
 {% else %}
+{% set escala_txt = {'10': 'sobre 10', '20': 'sobre 20 → convertido a /10', '5': 'sobre 5 → convertido a /10', '100': 'sobre 100 → convertido a /10',
+                     'puntaje': 'puntaje directo', 'porcentaje': 'porcentaje de cumplimiento → convertido a puntaje'} %}
+<div class="kpis">
+    <div class="kpi"><span class="kpi-label">Filas leídas</span><span class="kpi-value">{{ preview.total }}</span></div>
+    <div class="kpi kpi-green"><span class="kpi-label">Docentes reconocidos</span><span class="kpi-value">{{ preview.registros|length }}</span></div>
+    <div class="kpi kpi-red"><span class="kpi-label">No encontrados / con error</span><span class="kpi-value">{{ preview.no_encontrados|length + preview.rechazados|length }}</span></div>
+</div>
+{% if preview.columnas_valor or opciones.escala %}
+<div class="db-card mb"><div class="db-card__body small row">
+    {% if preview.columnas_valor %}<span>Columnas de valor:</span>{% for c in preview.columnas_valor %}<span class="badge badge-info">{{ c }}</span>{% endfor %}
+    {% if preview.columnas_valor|length > 1 %}<span class="muted">(se promedian)</span>{% endif %}{% endif %}
+    {% if opciones.escala %}<span class="badge badge-gold">Escala: {{ escala_txt.get(opciones.escala, opciones.escala) }}</span>{% endif %}
+</div></div>
+{% endif %}
+
+{% if preview.no_encontrados or preview.rechazados %}
+<div class="db-card mb">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('alert', 'width="17" height="17"') }} No se importarán</h3></div>
+    <div class="db-card__body small">
+        {% for r in preview.no_encontrados %}<div class="alert alert-warning">Fila {{ r.fila }}: "{{ r.nombre }}" no está registrado como docente. Impórtelo primero en el paso 1.</div>{% endfor %}
+        {% for r in preview.rechazados %}<div class="alert alert-danger">{{ r.docente.nombre_completo }}: {{ r.errores|join('; ') }}</div>{% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <div class="db-card">
-    <div class="db-card__head"><h3 class="db-card__title">{{ preview.total }} filas encontradas</h3>
-        <div class="row">{% for k, v in preview.mapeo.items() %}<span class="badge badge-info">{{ k }} → {{ v }}</span>{% endfor %}</div></div>
-    <div class="table-container">
-        <table>
-            <thead><tr>{% for c in preview.columnas %}<th>{{ c }}</th>{% endfor %}</tr></thead>
-            <tbody>{% for f in preview.filas %}<tr>{% for v in f %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    <div class="db-card__head"><h3 class="db-card__title">Datos a guardar</h3><input type="search" class="form-control" style="max-width:240px;" placeholder="Filtrar..." data-filter="tablaPrev"></div>
+    <div class="table-container" style="max-height:480px;overflow:auto;">
+        <table id="tablaPrev">
+        {% if tipo == 'docentes' %}
+            <thead><tr><th>Fila</th><th>Código</th><th>Apellidos y nombres</th><th>Modalidad</th><th>Situación</th></tr></thead>
+            <tbody>{% for r in preview.registros %}
+                <tr><td class="muted">{{ r.fila }}</td><td>{{ r.codigo or '(se generará)' }}</td><td class="cell-title">{{ r.nombre }}</td><td class="muted">{{ r.extra.modalidad or '-' }}</td>
+                    <td>{% if r.docente %}<span class="badge badge-info">Ya registrado</span>{% else %}<span class="badge badge-success">Nuevo</span>{% endif %}</td></tr>
+            {% endfor %}</tbody>
+        {% elif tipo == 'normas' %}
+            <thead><tr><th>Docente</th>{% for c, e, mx in criterios %}<th class="num" title="{{ e }}">C{{ loop.index }} /{{ mx }}</th>{% endfor %}<th class="num">Nota /10</th></tr></thead>
+            <tbody>{% for r in preview.registros %}
+                {% set suma = namespace(v=0, n=0) %}
+                <tr><td class="cell-title">{{ r.docente.nombre_completo }}</td>
+                {% for c, e, mx in criterios %}{% set v = r.valores.get(c) %}{% if v is not none %}{% set suma.v = suma.v + v %}{% set suma.n = suma.n + 1 %}{% endif %}<td class="num">{{ v|nota }}</td>{% endfor %}
+                <td class="num strong">{{ (suma.v / 10)|nota if suma.n == criterios|length else (r.valores.get('normas')|nota if r.valores.get('normas') is not none else '—') }}</td></tr>
+            {% endfor %}</tbody>
+        {% else %}
+            <thead><tr><th>Docente</th><th class="num">Filas</th><th class="num">Valores leídos</th><th class="num">{{ 'Puntaje (/' ~ maximo_criterio ~ ')' if campo_criterio else 'Nota final (/10)' }}</th></tr></thead>
+            <tbody>{% for r in preview.registros %}
+                <tr><td class="cell-title">{{ r.docente.nombre_completo }}</td><td class="num muted">{{ r.filas|length }}</td><td class="num muted">{{ r.n_valores }}</td><td class="num strong">{{ r.valores.valor|nota }}</td></tr>
+            {% endfor %}</tbody>
+        {% endif %}
         </table>
     </div>
 </div>
 {% endif %}
 
+{% if tipo != 'ficha_integral' %}
+<div class="form-actions mt" style="justify-content:flex-start;">
+    <a class="btn" href="{{ url_for('importacion.columnas') }}">{{ m.icon('edit') }} Cambiar hoja o columnas</a>
+    {% if preview.hoja %}<span class="small muted">Hoja "{{ preview.hoja }}", títulos en la fila {{ preview.fila_titulos }}.</span>{% endif %}
+</div>
+{% endif %}
 {% if not preview.error %}
 <div class="form-actions mt">
     <form method="post" action="{{ url_for('importacion.cancelar') }}">{{ m.csrf() }}<button class="btn">Cancelar</button></form>

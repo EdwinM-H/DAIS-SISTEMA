@@ -46,7 +46,7 @@
         <div class="db-card__head"><h3 class="db-card__title">Cumplimiento de normas</h3><span class="db-card__tag">Subtotal {{ analisis.criterios.subtotal_normas|nota if analisis.criterios else '-' }} / 100</span></div>
         <div class="db-card__body">
             {% if analisis.criterios %}
-                {% for campo, etiqueta, maximo in [('reuniones','Reuniones de junta',15),('silabos','Silabos y portafolio',20),('notas_config','Configuracion de notas',15),('horas_lectivas','Horas lectivas',20),('puntualidad','Puntualidad',10),('subida_notas_erp','Asistencia en ERP',10),('designacion_delegados','Delegados',10)] %}
+                {% for campo, etiqueta, maximo in [('reuniones','Reuniones de junta',15),('silabos','Silabos y portafolio',20),('notas_config','Configuracion de notas',15),('horas_lectivas','Horas lectivas',20),('puntualidad','Puntualidad',15),('subida_notas_erp','Asistencia en ERP',10),('designacion_delegados','Delegados',5)] %}
                     {{ m.barra(analisis.criterios[campo], maximo, etiqueta) }}
                 {% endfor %}
             {% else %}

@@ -6,13 +6,23 @@ PESO_AUTOEVALUACION = 0.20
 
 # Criterios de cumplimiento de normas: (campo, etiqueta, puntaje maximo sobre 100)
 CRITERIOS_NORMA = [
-    ("reuniones", "Asistencia a reuniones de junta", 15),
-    ("silabos", "Entrega de silabos y portafolio", 20),
-    ("notas_config", "Configuracion y registro de notas", 15),
+    ("reuniones", "Participación en reuniones de junta de docentes", 15),
+    ("silabos", "Entrega de sílabos, portafolio, avance silábico e informe final", 20),
+    ("notas_config", "Registro de configuración de aportes, notas y actas", 15),
     ("horas_lectivas", "Asistencia a horas lectivas", 20),
-    ("puntualidad", "Puntualidad", 10),
-    ("subida_notas_erp", "Registro de asistencia en ERP", 10),
-    ("designacion_delegados", "Eleccion y registro de delegados", 10),
+    ("puntualidad", "Puntualidad", 15),
+    ("subida_notas_erp", "Registro de asistencia del estudiante en el ERP", 10),
+    ("designacion_delegados", "Elección y registro del delegado de asignatura", 5),
+]
+
+# Dimensiones de la evaluacion (clave, nombre, peso, descripcion oficial)
+DIMENSIONES = [
+    ("encuesta", "Encuesta de estudiantes", 0.40,
+     "Desempeño académico percibido por los estudiantes (promediando ambos semestres)."),
+    ("normas", "Cumplimiento de normas", 0.40,
+     "Siete criterios de cumplimiento; la nota es el subtotal sobre 100 dividido entre 10."),
+    ("autoevaluacion", "Autoevaluación docente", 0.20,
+     "Formulario virtual de autoevaluación, registro obligatorio (considerando los dos semestres del año)."),
 ]
 
 # Umbrales de clasificacion (escala /10). Solo se aplican cuando la fuente

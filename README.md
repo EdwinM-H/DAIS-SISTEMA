@@ -43,7 +43,7 @@ Toda cuenta nueva o restablecida usa una contrasena temporal que debe cambiarse 
 
 * Escala unica 0–10. Promedio final = Encuesta × 40% + Normas × 40% + Autoevaluacion × 20%.
 * Normas = suma de 7 criterios (reuniones 15, silabos 20, notas 15, horas lectivas 20,
-  puntualidad 10, ERP 10, delegados 10) / 10.
+  puntualidad 15, ERP 10, delegados 5) / 10.
 * Clasificacion oficial del Excel; si falta: Excelente ≥ 9, Muy Bueno ≥ 8, Bueno ≥ 7, Regular ≥ 6.
 * Ranking con empates compartidos (1, 2, 2, 4) — el mismo en dashboard, fichas y portal docente.
 * Los docentes ven sus resultados solo cuando la Direccion **publica** el semestre (Semestres).

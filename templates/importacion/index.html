@@ -1,76 +1,276 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m with context %}
-{% block title %}Importar datos{% endblock %}
-{% block page_title %}Importar datos{% endblock %}
+{% block title %}Proceso de evaluación{% endblock %}
+{% block page_title %}Proceso de evaluación{% endblock %}
+
+{% macro avance(n, total) -%}
+{% set p = n|pct(total) if total else 0 %}
+<div class="paso-avance">
+    <div class="progress {{ 'ok' if total and n == total else ('warn' if n else 'bad') }}"><span style="width: {{ p }}%"></span></div>
+    <span class="small"><strong>{{ n }}</strong> de {{ total }} docentes</span>
+</div>
+{%- endmacro %}
+
+{% macro faltantes(lista) -%}
+{% if lista %}
+<details class="faltan">
+    <summary>Faltan {{ lista|length }} docente(s)</summary>
+    <div class="faltan-lista">{% for d in lista %}<span>{{ d.nombre_completo }}</span>{% endfor %}</div>
+</details>
+{% endif %}
+{%- endmacro %}
+
+{% macro ultima(tipo) -%}
+{% set u = estado.ultimas.get(tipo) %}
+{% if u %}<span class="muted small">Última carga: {{ u.fecha_importacion|fecha(true) }} · {{ u.nombre_archivo }}</span>{% endif %}
+{%- endmacro %}
+
 {% block content %}
-{{ m.page_head('Importar datos de evaluacion', 'Cargue la Ficha de Evaluacion Integral (Excel oficial) o archivos parciales. Siempre vera una vista previa antes de guardar.') }}
 {% if not semestre_actual %}
 <div class="db-card">{{ m.empty('Seleccione un semestre', 'Use el selector de la barra superior para elegir o crear el semestre de trabajo.', 'calendar') }}</div>
 {% else %}
-<div class="grid grid-main">
-    <div class="db-card">
-        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('upload', 'width="17" height="17"') }} Cargar archivo</h3><span class="db-card__tag">Semestre {{ semestre_actual.codigo }}</span></div>
-        <div class="db-card__body">
-            <form method="post" action="{{ url_for('importacion.previsualizar') }}" enctype="multipart/form-data">
-                {{ m.csrf() }}
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="required">Tipo de informacion</label>
-                        <select name="tipo" class="form-control">
-                            {% for clave, nombre in tipos.items() %}<option value="{{ clave }}">{{ nombre }}</option>{% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="required">Archivo (.xlsx o .csv)</label>
-                        <input type="file" name="archivo" accept=".xlsx,.csv" required class="form-control">
-                    </div>
-                </div>
-                <div class="form-actions"><button class="btn btn-primary">{{ m.icon('eye') }} Previsualizar</button></div>
-            </form>
-            {% if archivo_disponible %}
-            <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">
-            <div class="row-between">
-                <span class="small muted">Archivo oficial disponible en el servidor: <strong>{{ archivo_disponible }}</strong></span>
-                <form method="post" action="{{ url_for('importacion.usar_disponible') }}">{{ m.csrf() }}<button class="btn btn-sm">Usar este archivo</button></form>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    <div class="db-card">
-        <div class="db-card__head"><h3 class="db-card__title">Como funciona</h3></div>
-        <div class="db-card__body small">
-            <p><strong>Ficha Integral:</strong> importa en un paso docentes, modalidad, encuesta, los 7 criterios de normas, autoevaluacion, promedio y clasificacion oficiales, ademas de las hojas <em>CAPACITACIONES</em> e <em>INVESTIGACIONES</em>.</p>
-            <p class="mt"><strong>Archivos parciales:</strong> una columna con el nombre del docente y otra con la nota (0 a 10). Para normas puede incluir los criterios.</p>
-            <p class="mt"><strong>Reimportar es seguro:</strong> los docentes se reconocen por su nombre (sin importar orden, tildes o mayusculas) y sus notas se actualizan sin duplicar registros.</p>
-        </div>
-    </div>
-</div>
-{% endif %}
+{% set total = estado.total %}
+{% set er = estado.estado_resultados %}
+{% call m.page_head('Proceso de evaluación ' ~ semestre_actual.codigo, 'Cargue la información de cada dimensión. Los resultados (promedio, clasificación y ranking) se obtienen recién al calcularlos con toda la información completa.') %}
+    {% if er == 'vigente' %}<span class="badge badge-success" style="font-size:.8rem;padding:6px 12px;">Resultados calculados</span>
+    {% elif er == 'desactualizado' %}<span class="badge badge-warning" style="font-size:.8rem;padding:6px 12px;">Hay datos nuevos: recalcule</span>
+    {% else %}<span class="badge badge-secondary" style="font-size:.8rem;padding:6px 12px;">Resultados pendientes</span>{% endif %}
+{% endcall %}
 
-<div class="db-card mt">
-    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('history', 'width="17" height="17"') }} Ultimas importaciones</h3></div>
-    <div class="table-container">
-        <table>
-            <thead><tr><th>Fecha</th><th>Archivo</th><th>Tipo</th><th>Semestre</th><th>Usuario</th><th class="num">Encontrados</th><th class="num">Nuevos</th><th class="num">Actualizados</th><th class="num">Rechazados</th><th></th></tr></thead>
+{# ------- Linea de pasos ------- #}
+{% set pasos_linea = [
+    ('Docentes', total > 0),
+    ('Encuesta', total and estado.pasos.encuesta == total),
+    ('Normas', total and estado.pasos.normas == total),
+    ('Autoevaluación', total and estado.pasos.autoevaluacion == total),
+    ('Resultados', er == 'vigente'),
+] %}
+<div class="db-card mb"><div class="db-card__body">
+    <div class="stepper">
+        {% set ns = namespace(actual=False) %}
+        {% for etiqueta, hecho in pasos_linea %}
+            {% set es_actual = not hecho and not ns.actual %}{% if es_actual %}{% set ns.actual = True %}{% endif %}
+            <div class="step {{ 'done' if hecho else ('current' if es_actual) }}"><span class="bullet"></span>{{ loop.index }}. {{ etiqueta }}</div>
+        {% endfor %}
+    </div>
+</div></div>
+
+<div class="proceso">
+    {# ------- Paso 1: docentes ------- #}
+    <section class="paso">
+        <div class="paso-num {{ 'ok' if total }}">1</div>
+        <div class="db-card paso-card">
+            <div class="paso-head">
+                <div><h3>Docentes del semestre</h3><p class="muted small">Lista de docentes que serán evaluados en {{ semestre_actual.codigo }}.</p></div>
+                <div class="row">
+                    <a class="btn btn-sm" href="{{ url_for('importacion.plantilla', tipo='docentes') }}" data-no-lock>{{ m.icon('download') }} Plantilla</a>
+                    <button class="btn btn-sm btn-primary" data-dialog="dlgImportar" data-fill-tipo="docentes" data-title="Importar docentes del semestre" data-escala="ninguna">{{ m.icon('upload') }} Importar Excel</button>
+                </div>
+            </div>
+            <div class="paso-body">
+                <span class="kpi-value" style="font-size:1.5rem;">{{ total }}</span> <span class="muted">docentes registrados</span>
+                <a class="small" href="{{ url_for('docentes.index') }}" style="margin-left:10px;">Ver lista &rarr;</a>
+                <div>{{ ultima('docentes') }}</div>
+            </div>
+        </div>
+    </section>
+
+    {# ------- Pasos 2-4: dimensiones ------- #}
+    {% for clave, nombre, peso, descripcion in dimensiones %}
+    <section class="paso">
+        <div class="paso-num {{ 'ok' if total and estado.pasos[clave] == total }}">{{ loop.index + 1 }}</div>
+        <div class="db-card paso-card">
+            <div class="paso-head">
+                <div>
+                    <h3>{{ nombre }} <span class="badge badge-gold">{{ (peso * 100)|int }}%</span></h3>
+                    <p class="muted small">{{ descripcion }}</p>
+                </div>
+                {% if clave != 'normas' %}
+                <div class="row">
+                    <a class="btn btn-sm" href="{{ url_for('importacion.plantilla', tipo=clave) }}" data-no-lock>{{ m.icon('download') }} Plantilla</a>
+                    <button class="btn btn-sm btn-primary" data-dialog="dlgImportar" data-fill-tipo="{{ clave }}" data-title="Importar: {{ nombre }}" data-escala="nota" {{ 'disabled' if not total }}>{{ m.icon('upload') }} Importar Excel</button>
+                </div>
+                {% else %}
+                <div class="row">
+                    <a class="btn btn-sm" href="{{ url_for('importacion.plantilla', tipo='normas') }}" data-no-lock>{{ m.icon('download') }} Plantilla (7 criterios)</a>
+                    <button class="btn btn-sm" data-dialog="dlgImportar" data-fill-tipo="normas" data-title="Importar todos los criterios de normas" data-escala="criterio" {{ 'disabled' if not total }}>{{ m.icon('upload') }} Importar todos</button>
+                </div>
+                {% endif %}
+            </div>
+            <div class="paso-body">
+                {{ avance(estado.pasos[clave], total) }}
+                {% if clave == 'normas' %}
+                <div class="table-container mt" style="border:1px solid var(--border);border-radius:10px;">
+                    <table class="tabla-criterios">
+                        <thead><tr><th>Criterio</th><th class="num">Peso</th><th>Avance</th><th></th></tr></thead>
+                        <tbody>
+                        {% for campo, etiqueta, maximo in criterios %}
+                            {% set n = estado.pasos[campo] %}
+                            <tr>
+                                <td><div class="cell-title">{{ etiqueta }}</div>{{ faltantes(estado.faltan[campo]) if n and n < total }}</td>
+                                <td class="num">{{ maximo }}</td>
+                                <td style="min-width:150px;">
+                                    <div class="progress {{ 'ok' if total and n == total else ('warn' if n else 'bad') }}"><span style="width: {{ n|pct(total) if total else 0 }}%"></span></div>
+                                    <span class="small muted">{{ n }} / {{ total }}</span>
+                                </td>
+                                <td>
+                                    <div class="table-actions">
+                                        <a class="btn btn-xs" href="{{ url_for('importacion.plantilla', tipo='criterio_' ~ campo) }}" data-no-lock title="Plantilla con puntaje">{{ m.icon('download') }}</a>
+                                        <button class="btn btn-xs btn-primary" data-dialog="dlgImportar" data-fill-tipo="criterio_{{ campo }}" data-title="Importar: {{ etiqueta }}" data-escala="criterio" data-maximo="{{ maximo }}" {{ 'disabled' if not total }}>Importar</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                {{ faltantes(estado.faltan[clave]) if estado.pasos[clave] }}
+                {% endif %}
+                <div class="mt">{{ ultima(clave) }}</div>
+            </div>
+        </div>
+    </section>
+    {% endfor %}
+
+    {# ------- Paso 5: resultados ------- #}
+    <section class="paso">
+        <div class="paso-num {{ 'ok' if er == 'vigente' }}">5</div>
+        <div class="db-card paso-card paso-final">
+            <div class="paso-head">
+                <div>
+                    <h3>Calcular resultados</h3>
+                    <p class="muted small">Promedio final = Encuesta × 40% + Normas × 40% + Autoevaluación × 20%. Luego se asignan la clasificación y el puesto en el ranking.</p>
+                </div>
+                {% if er != 'pendiente' %}<a class="btn btn-sm" href="{{ url_for('ranking.index') }}">{{ m.icon('trophy') }} Ver ranking</a>{% endif %}
+            </div>
+            <div class="paso-body">
+                <div class="row" style="gap:18px;">
+                    <div><span class="kpi-value" style="font-size:1.5rem;color:var(--success);">{{ estado.completos }}</span> <span class="muted">con información completa</span></div>
+                    <div><span class="kpi-value" style="font-size:1.5rem;color:{{ 'var(--danger)' if estado.incompletos else 'var(--text-light)' }};">{{ estado.incompletos }}</span> <span class="muted">incompletos</span></div>
+                    {% if semestre_actual.fecha_calculo %}<span class="muted small">Último cálculo: {{ semestre_actual.fecha_calculo|fecha(true) }}</span>{% endif %}
+                </div>
+                {% if er == 'desactualizado' %}<div class="callout gold mt">Se cargaron datos después del último cálculo. Recalcule para actualizar promedios y ranking.</div>{% endif %}
+                {% if current_user.es_direccion %}
+                <form method="post" action="{{ url_for('importacion.calcular') }}" class="mt row-between"
+                      data-confirm="Se calcularán los promedios, clasificaciones y el ranking de {{ semestre_actual.codigo }}. ¿Continuar?">
+                    {{ m.csrf() }}
+                    {% if estado.incompletos and estado.completos %}
+                    <label class="small" style="font-weight:500;"><input type="checkbox" name="excluir" value="1"> Calcular excluyendo a los {{ estado.incompletos }} docente(s) incompletos</label>
+                    {% else %}<span></span>{% endif %}
+                    <button class="btn btn-success" {{ 'disabled' if not estado.completos }}>{{ m.icon('check') }} {{ 'Recalcular' if er != 'pendiente' else 'Calcular' }} resultados</button>
+                </form>
+                {% else %}
+                <p class="small muted mt">Solo la Dirección del DAIS puede calcular los resultados.</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</div>
+
+{# ------- Avance por docente ------- #}
+{% if total %}
+<details class="db-card mt avance-docentes" {{ 'open' if estado.incompletos and estado.incompletos < total }}>
+    <summary class="db-card__head" style="cursor:pointer;"><h3 class="db-card__title">{{ m.icon('users', 'width="17" height="17"') }} Avance por docente</h3><span class="db-card__tag">{{ estado.completos }} / {{ total }} completos</span></summary>
+    <div class="filters"><input type="search" class="form-control" style="max-width:280px;" placeholder="Buscar docente..." data-filter="tablaAvance"></div>
+    <div class="table-container" style="max-height:520px;overflow:auto;">
+        <table id="tablaAvance">
+            <thead><tr><th>Docente</th><th class="num">Encuesta</th>{% for c, e, mx in criterios %}<th class="num" title="{{ e }}">C{{ loop.index }}</th>{% endfor %}<th class="num">Normas</th><th class="num">Autoeval.</th><th>Estado</th></tr></thead>
             <tbody>
-            {% for h in historial %}
+            {% for f in estado.filas %}
                 <tr>
-                    <td class="nowrap">{{ h.fecha_importacion|fecha(true) }}</td>
-                    <td class="truncate">{{ h.nombre_archivo }}</td>
-                    <td>{{ h.tipo_nombre }}</td>
-                    <td>{{ h.semestre.codigo }}</td>
-                    <td class="muted">{{ h.usuario.username if h.usuario else 'consola' }}</td>
-                    <td class="num">{{ h.registros_encontrados }}</td>
-                    <td class="num">{{ h.registros_importados }}</td>
-                    <td class="num">{{ h.registros_actualizados }}</td>
-                    <td class="num">{% if h.registros_rechazados %}<span class="badge badge-danger">{{ h.registros_rechazados }}</span>{% else %}0{% endif %}</td>
-                    <td><a class="btn btn-xs" href="{{ url_for('importacion.detalle', imp_id=h.id) }}">Detalle</a></td>
+                    <td><a class="cell-title" style="text-decoration:none;" href="{{ url_for('docentes.evaluacion', docente_id=f.docente.id) }}">{{ f.docente.nombre_completo }}</a></td>
+                    <td class="num">{{ f.evaluacion.encuesta|nota if f.encuesta else '—' }}</td>
+                    {% for c, e, mx in criterios %}<td class="num {{ '' if f.detalle_criterios[c] else 'falta' }}">{{ f.criterios[c]|nota if f.detalle_criterios[c] else '—' }}</td>{% endfor %}
+                    <td class="num strong">{{ (f.criterios.nota_normas if f.criterios and f.criterios.subtotal_normas is not none else f.evaluacion.normas)|nota if f.normas else '—' }}</td>
+                    <td class="num">{{ f.evaluacion.autoevaluacion|nota if f.autoevaluacion else '—' }}</td>
+                    <td>{% if f.completo %}<span class="badge badge-success">Completo</span>{% else %}<span class="badge badge-warning">Incompleto</span>{% endif %}</td>
                 </tr>
-            {% else %}
-                <tr><td colspan="10" class="muted">Aun no hay importaciones.</td></tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
+    <p class="small muted card-pad" style="padding-top:8px;">C1–C7: {% for c, e, mx in criterios %}C{{ loop.index }} {{ e }} ({{ mx }}){{ '; ' if not loop.last }}{% endfor %}. Haga clic en un docente para corregir sus datos manualmente.</p>
+</details>
+{% endif %}
+
+<div class="grid grid-2 mt">
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('history', 'width="17" height="17"') }} Cargas del semestre</h3></div>
+        <div class="db-card__body">
+            <ul class="timeline">
+            {% for h in historial %}
+                <li><strong>{{ h.tipo_nombre }}</strong> — {{ h.nombre_archivo }}
+                    <div class="small">{{ h.registros_importados }} nuevos · {{ h.registros_actualizados }} actualizados{% if h.registros_rechazados %} · <span style="color:var(--danger);">{{ h.registros_rechazados }} rechazados</span>{% endif %}</div>
+                    <div class="when">{{ h.fecha_importacion|fecha(true) }} · {{ h.usuario.username if h.usuario else 'consola' }} · <a href="{{ url_for('importacion.detalle', imp_id=h.id) }}">detalle</a></div></li>
+            {% else %}
+                <li class="muted">Aún no hay cargas en este semestre.</li>
+            {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('file', 'width="17" height="17"') }} Alternativa: Ficha Integral completa</h3></div>
+        <div class="db-card__body small">
+            <p>Si ya cuenta con el Excel oficial de la Ficha de Evaluación Integral (con todas las dimensiones y resultados), puede importarlo en un solo paso. Sus promedios y clasificaciones oficiales se toman tal cual.</p>
+            <div class="row mt">
+                <button class="btn btn-sm" data-dialog="dlgImportar" data-fill-tipo="ficha_integral" data-title="Importar Ficha Integral completa" data-escala="ninguna">{{ m.icon('upload') }} Importar Ficha Integral</button>
+                {% if archivo_disponible %}
+                <form method="post" action="{{ url_for('importacion.usar_disponible') }}">{{ m.csrf() }}<button class="btn btn-sm btn-ghost" title="{{ archivo_disponible }}">Usar archivo del servidor</button></form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
+
+{# ------- Dialogo de importacion ------- #}
+<dialog class="dlg" id="dlgImportar">
+    <form method="post" action="{{ url_for('importacion.previsualizar') }}" enctype="multipart/form-data">
+        {{ m.csrf() }}
+        <input type="hidden" name="tipo" value="">
+        <div class="dlg-head"><h3>Importar</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+        <div class="dlg-body">
+            <div class="form-group">
+                <label class="required">Archivo Excel (.xlsx) o CSV</label>
+                <input type="file" name="archivo" accept=".xlsx,.csv" required class="form-control">
+                <div class="form-hint">Se recomienda usar la plantilla del sistema. Si un docente aparece en varias filas o columnas (por ejemplo, semestre I y II), sus valores se promedian.</div>
+            </div>
+            <div class="form-group" data-escala-grupo="nota">
+                <label>Escala de las notas en el archivo</label>
+                <select name="escala" class="form-control" disabled>
+                    <option value="10">Sobre 10 (se usa tal cual)</option>
+                    <option value="20">Sobre 20 (se convierte a 10)</option>
+                    <option value="5">Sobre 5 (se convierte a 10)</option>
+                    <option value="100">Sobre 100 / porcentaje (se convierte a 10)</option>
+                </select>
+            </div>
+            <div class="form-group" data-escala-grupo="criterio">
+                <label>Los valores del archivo están en</label>
+                <select name="escala" class="form-control" disabled>
+                    <option value="puntaje">Puntaje del criterio (0 al peso del criterio)</option>
+                    <option value="porcentaje">Porcentaje de cumplimiento (0 a 100%)</option>
+                </select>
+            </div>
+            <p class="small muted">Antes de guardar verá una vista previa con cada docente reconocido y los que no se encontraron.</p>
+        </div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">{{ m.icon('eye') }} Previsualizar</button></div>
+    </form>
+</dialog>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Muestra el selector de escala adecuado segun el tipo de importacion */
+document.querySelectorAll('[data-dialog="dlgImportar"]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        var modo = btn.getAttribute('data-escala');
+        document.querySelectorAll('#dlgImportar [data-escala-grupo]').forEach(function (g) {
+            var activo = g.getAttribute('data-escala-grupo') === modo;
+            g.style.display = activo ? '' : 'none';
+            g.querySelector('select').disabled = !activo;
+        });
+    });
+});
+</script>
 {% endblock %}

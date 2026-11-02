@@ -14,6 +14,10 @@ class Semestre(db.Model):
     periodo = db.Column(db.String(2), nullable=False)
     activo = db.Column(db.Boolean, nullable=False, default=False)
     publicado = db.Column(db.Boolean, nullable=False, default=False)
+    # Los resultados (promedio, clasificacion, ranking) solo existen tras "Calcular resultados".
+    # Si luego se importan datos nuevos, resultados_vigentes pasa a False hasta recalcular.
+    resultados_vigentes = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    fecha_calculo = db.Column(db.DateTime, nullable=True)
     creado_en = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
 
     evaluaciones = db.relationship("Evaluacion", back_populates="semestre", cascade="all, delete-orphan")
@@ -36,6 +40,17 @@ class Semestre(db.Model):
     @classmethod
     def crear(cls, anio, periodo):
         return cls(codigo=f"{anio}-{periodo}", anio=anio, periodo=periodo)
+
+    @property
+    def estado_resultados(self):
+        """'pendiente' (nunca calculados), 'vigente' o 'desactualizado' (hubo cambios)."""
+        if not self.fecha_calculo:
+            return "pendiente"
+        return "vigente" if self.resultados_vigentes else "desactualizado"
+
+    def marcar_desactualizado(self):
+        if self.fecha_calculo:
+            self.resultados_vigentes = False
 
     @property
     def orden(self):

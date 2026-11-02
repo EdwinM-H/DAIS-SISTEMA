@@ -2,12 +2,15 @@ import json
 
 from models import db
 
+from models.evaluacion import CRITERIOS_NORMA
+
 TIPOS_IMPORTACION = {
-    "ficha_integral": "Ficha de Evaluacion Integral",
-    "docentes": "Lista de docentes",
-    "encuesta": "Encuesta estudiantil",
-    "normas": "Cumplimiento de normas",
-    "autoevaluacion": "Autoevaluacion",
+    "ficha_integral": "Ficha de Evaluacion Integral (completa)",
+    "docentes": "Docentes del semestre",
+    "encuesta": "Encuesta de estudiantes",
+    "normas": "Cumplimiento de normas (todos los criterios)",
+    **{f"criterio_{c}": f"Normas: {etiqueta}" for c, etiqueta, _ in CRITERIOS_NORMA},
+    "autoevaluacion": "Autoevaluacion docente",
 }
 
 

@@ -51,6 +51,9 @@ def activar(semestre_id):
 def publicar(semestre_id):
     """Publica (o retira) los resultados para que los docentes los vean en su portal."""
     sem = db.get_or_404(Semestre, semestre_id)
+    if not sem.publicado and sem.estado_resultados != "vigente":
+        flash("Primero calcule (o recalcule) los resultados en Proceso de evaluacion.", "warning")
+        return redirect(url_for("semestres.index"))
     sem.publicado = not sem.publicado
     if sem.publicado:
         ids = [p.docente_id for p in DocenteSemestre.query.filter_by(semestre_id=sem.id)]

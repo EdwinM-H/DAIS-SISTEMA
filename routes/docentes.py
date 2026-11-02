@@ -8,6 +8,7 @@ from models import (
 from models.docente import ESCUELA_DEFAULT, titulo
 from services.evaluacion_service import analisis_docente, historial_docente, mapa_posiciones
 from services.excel_service import a_numero
+from services.proceso_service import recalcular_docente
 from utils import gestion_required, direccion_required
 
 docentes_bp = Blueprint("docentes", __name__)
@@ -196,18 +197,22 @@ def evaluacion(docente_id):
             for c, v in valores_crit.items():
                 setattr(crit, c, v)
             crit.calcular_subtotal()
-            ev.normas = crit.nota_normas
+            ev.normas = crit.nota_normas if all(v is not None for v in valores_crit.values()) else None
         else:
             ev.normas = normas_manual
         ev.encuesta = encuesta
         ev.autoevaluacion = autoeval
-        ev.recalcular()
+        # El promedio solo se recalcula si el semestre ya tiene resultados calculados
+        recalcular_docente(ev, crit, semestre)
         ev.observaciones = request.form.get("observaciones", "").strip() or None
         ev.editado_manual = True
         if not DocenteSemestre.query.filter_by(docente_id=docente_id, semestre_id=semestre_id).first():
             db.session.add(DocenteSemestre(docente_id=docente_id, semestre_id=semestre_id))
         db.session.commit()
-        flash("Evaluacion guardada. Promedio y clasificacion recalculados.", "success")
+        if semestre.fecha_calculo:
+            flash("Evaluacion guardada. Promedio y clasificacion del docente recalculados.", "success")
+        else:
+            flash("Evaluacion guardada. El promedio se obtendra al calcular los resultados del semestre.", "success")
         return redirect(url_for("docentes.detalle", docente_id=docente_id))
 
     return render_template("docentes/evaluacion.html", docente=docente, semestre=semestre,

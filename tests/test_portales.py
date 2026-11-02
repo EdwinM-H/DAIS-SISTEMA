@@ -208,8 +208,17 @@ def test_edicion_manual_de_evaluacion_recalcula(client, app):
     with app.app_context():
         from models import Evaluacion
         ev = Evaluacion.query.filter_by(docente_id=doc_id).one()
-        assert ev.normas == 9.5 and ev.promedio_final == round(8 * .4 + 9.5 * .4 + 10 * .2, 4)
-        assert ev.promedio_final == 9.0 and ev.clasificacion == "Excelente" and ev.editado_manual
+        # Sin "Calcular resultados" aun no hay promedio
+        assert ev.normas == 9.5 and ev.promedio_final is None and ev.editado_manual
+    client.get("/logout")
+    login(client, "directora")
+    client.post("/evaluacion/calcular", data={})
+    with app.app_context():
+        from models import Evaluacion
+        ev = Evaluacion.query.filter_by(docente_id=doc_id).one()
+        assert ev.promedio_final == 9.0 and ev.clasificacion == "Excelente"
+    client.get("/logout")
+    login(client, "operador")
     # Fuera de rango -> rechazado
     client.post(f"/docentes/{doc_id}/evaluacion", data={**datos, "encuesta": "15"})
     with app.app_context():

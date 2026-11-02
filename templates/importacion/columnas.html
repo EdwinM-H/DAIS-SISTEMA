@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Elegir columnas{% endblock %}
+{% block page_title %}Proceso de evaluación{% endblock %}
+
+{% macro selector(campo, etiqueta, valor) -%}
+<div class="form-group">
+    <label>{{ etiqueta }}</label>
+    <select name="col_{{ campo }}" class="form-control sel-col" data-campo="{{ etiqueta }}">
+        <option value="">— No usar —</option>
+        {% for e in info.etiquetas %}<option value="{{ loop.index0 }}" {{ 'selected' if valor == loop.index0 }}>{{ e }}</option>{% endfor %}
+    </select>
+</div>
+{%- endmacro %}
+
+{% block content %}
+{{ m.page_head('Elegir la información a importar', tipo_nombre ~ ' · ' ~ filename, [('Proceso de evaluación', url_for('importacion.index')), ('Columnas', None)]) }}
+
+<div class="callout mb">Indique de qué hoja y qué columnas se toma cada dato. El sistema ya propuso una selección automática: revísela y corríjala si es necesario. Las columnas elegidas se resaltan en la muestra.</div>
+
+<form method="get" action="{{ url_for('importacion.columnas') }}" class="db-card mb">
+    <div class="filters" style="border-bottom:none;">
+        <div class="form-group" style="min-width:240px;">
+            <label>Hoja del Excel</label>
+            <select name="hoja" class="form-control" onchange="this.form.submit()">
+                {% for h in info.hojas %}<option {{ 'selected' if h == info.hoja }}>{{ h }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="min-width:160px;">
+            <label>Fila de títulos</label>
+            <input type="number" name="fila_titulos" min="1" value="{{ info.fila_titulos }}" class="form-control">
+        </div>
+        <button class="btn">Actualizar</button>
+        <span class="small muted">Se leen {{ info.filas|length }} filas con datos debajo de la fila {{ info.fila_titulos }}.</span>
+    </div>
+</form>
+
+<div class="db-card mb">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('eye', 'width="17" height="17"') }} Muestra de la hoja "{{ info.hoja }}"</h3><span class="db-card__tag">primeras {{ muestra|length }} filas</span></div>
+    <div class="table-container muestra-excel">
+        <table id="tablaMuestra">
+            <thead>
+                <tr><th class="col-fila">Fila</th>{% for e in info.etiquetas %}<th data-col="{{ loop.index0 }}"><span class="col-letra">{{ e.split(' · ')[0] }}</span>{{ e.split(' · ', 1)[1] }}</th>{% endfor %}</tr>
+            </thead>
+            <tbody>
+            {% for n, fila in muestra %}
+                <tr><td class="col-fila">{{ n }}</td>{% for v in fila %}<td data-col="{{ loop.index0 }}">{{ v if v is not none else '' }}</td>{% endfor %}</tr>
+            {% else %}
+                <tr><td colspan="{{ info.etiquetas|length + 1 }}" class="muted">No hay filas debajo de la fila de títulos. Revise el número de fila.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<form method="post" action="{{ url_for('importacion.columnas') }}">
+    {{ m.csrf() }}
+    <input type="hidden" name="hoja" value="{{ info.hoja }}">
+    <input type="hidden" name="fila_titulos" value="{{ info.fila_titulos }}">
+    <div class="grid grid-2">
+        <div class="db-card">
+            <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('user', 'width="17" height="17"') }} Identificación del docente</h3></div>
+            <div class="db-card__body">
+                <p class="small muted mb">Elija la columna de <strong>apellidos y nombres</strong> (o apellidos y nombres por separado). Si hay código del docente, también se usa para reconocerlo.</p>
+                {% for campo, etiqueta in campos_identidad %}{{ selector(campo, etiqueta, actual.get(campo)) }}{% endfor %}
+            </div>
+        </div>
+
+        <div class="db-card">
+            <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('chart', 'width="17" height="17"') }} Datos a importar</h3></div>
+            <div class="db-card__body">
+                {% for campo, etiqueta in campos %}{{ selector(campo, etiqueta, actual.get(campo)) }}{% endfor %}
+
+                {% if usa_valores %}
+                <label class="strong small">{{ 'Columna(s) con el puntaje del criterio' if campo_criterio else 'Columna(s) con la nota' }}</label>
+                <p class="form-hint" style="margin:2px 0 8px;">Si marca varias (por ejemplo, Semestre I y Semestre II) se promedian.</p>
+                <div class="checks-columnas">
+                    {% for e in info.etiquetas %}
+                    <label class="check-col"><input type="checkbox" name="col_valores" value="{{ loop.index0 }}" class="chk-col" {{ 'checked' if loop.index0 in actual.get('valores', []) }}> {{ e }}</label>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if tipo != 'docentes' %}
+                <div class="form-group mt">
+                    {% if campo_criterio or tipo == 'normas' %}
+                    <label>Los valores están en</label>
+                    <select name="escala" class="form-control">
+                        <option value="puntaje" {{ 'selected' if opciones.escala != 'porcentaje' }}>Puntaje del criterio (0 al peso{{ ' = ' ~ maximo_criterio if maximo_criterio }})</option>
+                        <option value="porcentaje" {{ 'selected' if opciones.escala == 'porcentaje' }}>Porcentaje de cumplimiento (0 a 100%)</option>
+                    </select>
+                    {% else %}
+                    <label>Escala de las notas</label>
+                    <select name="escala" class="form-control">
+                        {% for v, t in [('10', 'Sobre 10'), ('20', 'Sobre 20 (se convierte a 10)'), ('5', 'Sobre 5 (se convierte a 10)'), ('100', 'Sobre 100 (se convierte a 10)')] %}
+                        <option value="{{ v }}" {{ 'selected' if (opciones.escala or '10') == v }}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% if not campos and not usa_valores %}<p class="muted small">Este tipo solo requiere la identificación del docente.</p>{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="form-actions mt">
+        <button type="submit" class="btn" formaction="{{ url_for('importacion.cancelar') }}" formnovalidate>Cancelar</button>
+        <button class="btn btn-primary">{{ m.icon('eye') }} Ver vista previa</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Resalta en la muestra las columnas seleccionadas */
+(function () {
+    function marcar() {
+        var usadas = {};
+        document.querySelectorAll('.sel-col').forEach(function (s) { if (s.value !== '') usadas[s.value] = s.getAttribute('data-campo'); });
+        document.querySelectorAll('.chk-col:checked').forEach(function (c) { usadas[c.value] = 'Nota / puntaje'; });
+        document.querySelectorAll('#tablaMuestra [data-col]').forEach(function (td) {
+            var col = td.getAttribute('data-col');
+            td.classList.toggle('col-usada', col in usadas);
+            if (td.tagName === 'TH') td.title = usadas[col] ? 'Se usa como: ' + usadas[col] : '';
+        });
+    }
+    document.querySelectorAll('.sel-col, .chk-col').forEach(function (el) { el.addEventListener('change', marcar); });
+    marcar();
+})();
+</script>
+{% endblock %}

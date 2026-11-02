@@ -54,7 +54,8 @@ def get_dashboard_stats(semestre_id=None):
     semestre = db.session.get(Semestre, semestre_id) if semestre_id else None
     if not semestre:
         return stats
-    stats["semestre_actual"] = {"id": semestre.id, "codigo": semestre.codigo}
+    stats["semestre_actual"] = {"id": semestre.id, "codigo": semestre.codigo,
+                                "estado_resultados": semestre.estado_resultados}
 
     total_doc = DocenteSemestre.query.filter_by(semestre_id=semestre.id).count()
     evaluaciones = Evaluacion.query.filter_by(semestre_id=semestre.id).all()

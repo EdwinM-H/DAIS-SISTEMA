@@ -93,6 +93,17 @@
         </div>
     </section>
 
+    {% if stats.semestre_actual.estado_resultados != 'vigente' %}
+    <div class="callout {{ 'gold' }}">
+        {% if stats.semestre_actual.estado_resultados == 'pendiente' %}
+        Los resultados de {{ stats.semestre_actual.codigo }} aún no se han calculado. Continúe con la carga de datos en el
+        {% else %}
+        Hay datos cargados después del último cálculo de {{ stats.semestre_actual.codigo }}: los indicadores pueden estar desactualizados. Recalcule en el
+        {% endif %}
+        <a href="{{ url_for('importacion.index') }}"><strong>Proceso de evaluación &rarr;</strong></a>
+    </div>
+    {% endif %}
+
     <!-- 2b. GESTION DOCENTE -->
     <section class="kpis" style="margin:0;">
         <a class="kpi kpi-gold" href="{{ url_for('produccion.index', tipo='capacitaciones') }}" style="text-decoration:none;color:inherit;">

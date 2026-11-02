@@ -41,9 +41,9 @@
 
                 {% set en_eval = ep.split('.')[0] in ('docentes', 'ranking', 'importacion', 'documentos', 'historial', 'semestres') %}
                 {% call grupo('evaluacion', 'Evaluación docente', 'chart', en_eval) %}
+                    {{ nav(url_for('importacion.index'), 'Proceso de evaluación', 'target', ep.startswith('importacion.')) }}
                     {{ nav(url_for('docentes.index'), 'Docentes', 'users', ep.startswith('docentes.')) }}
-                    {{ nav(url_for('ranking.index'), 'Ranking', 'trophy', ep.startswith('ranking.')) }}
-                    {{ nav(url_for('importacion.index'), 'Importar datos', 'upload', ep.startswith('importacion.')) }}
+                    {{ nav(url_for('ranking.index'), 'Ranking y resultados', 'trophy', ep.startswith('ranking.')) }}
                     {{ nav(url_for('documentos.index'), 'Fichas Word', 'file', ep.startswith('documentos.')) }}
                     {{ nav(url_for('historial.index'), 'Historial', 'history', ep.startswith('historial.')) }}
                     {{ nav(url_for('semestres.index'), 'Semestres', 'calendar', ep.startswith('semestres.')) }}

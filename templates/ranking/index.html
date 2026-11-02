@@ -8,7 +8,15 @@
 {% endcall %}
 {% if not semestre_actual %}
 <div class="db-card">{{ m.empty('Seleccione un semestre', '', 'calendar') }}</div>
+{% elif semestre_actual.estado_resultados == 'pendiente' %}
+<div class="db-card">
+    {{ m.empty('Resultados aún no calculados', 'Complete la carga de docentes, encuesta, criterios de normas y autoevaluación, y luego presione "Calcular resultados".', 'target') }}
+    <div style="text-align:center;padding-bottom:28px;"><a class="btn btn-primary" href="{{ url_for('importacion.index') }}">{{ m.icon('target') }} Ir al proceso de evaluación</a></div>
+</div>
 {% else %}
+{% if semestre_actual.estado_resultados == 'desactualizado' %}
+<div class="callout gold mb">Se cargaron datos después del último cálculo ({{ semestre_actual.fecha_calculo|fecha(true) }}). Este ranking puede estar desactualizado. <a href="{{ url_for('importacion.index') }}">Recalcular resultados &rarr;</a></div>
+{% endif %}
 <div class="pills">
     <a class="pill {{ 'active' if not clasif }}" href="{{ url_for('ranking.index') }}">Todos</a>
     {% for c in ['Excelente', 'Muy Bueno', 'Bueno', 'Regular', 'Insuficiente'] %}
