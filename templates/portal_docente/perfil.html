@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Mi perfil{% endblock %}
+{% block page_title %}Mi perfil{% endblock %}
+{% block content %}
+{{ m.page_head('Mi perfil', 'Mantenga actualizados sus datos de contacto. Para corregir nombres o codigo, comuniquese con el DAIS.') }}
+<div class="grid grid-2">
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">Datos institucionales</h3></div>
+        <div class="db-card__body info-grid">
+            {% for label, valor in [('Codigo', docente.codigo), ('Apellidos', docente.apellidos), ('Nombres', docente.nombres), ('DNI', docente.dni), ('Categoria', docente.categoria_docente), ('Anios de servicio', docente.anios_servicio), ('Escuela', docente.escuela), ('Usuario', current_user.username)] %}
+            <div class="info-item"><span class="info-label">{{ label }}</span><span>{{ valor if valor is not none and valor != '' else '-' }}</span></div>
+            {% endfor %}
+        </div>
+    </div>
+    <form method="post" class="db-card">
+        {{ m.csrf() }}
+        <div class="db-card__head"><h3 class="db-card__title">Datos editables</h3></div>
+        <div class="db-card__body">
+            <div class="form-group"><label>Correo institucional</label><input type="email" name="correo_institucional" class="form-control" value="{{ docente.correo_institucional or '' }}"></div>
+            <div class="form-group"><label>Telefono</label><input name="telefono" class="form-control" value="{{ docente.telefono or '' }}"></div>
+            <div class="form-group"><label>Grado academico</label><input name="grado_academico" class="form-control" value="{{ docente.grado_academico or '' }}"></div>
+            <div class="form-group"><label>Especialidad</label><input name="especialidad" class="form-control" value="{{ docente.especialidad or '' }}"></div>
+            <div class="form-actions"><a class="btn" href="{{ url_for('auth.cambiar_password') }}">{{ m.icon('key') }} Cambiar contrasena</a><button class="btn btn-primary">Guardar</button></div>
+        </div>
+    </form>
+</div>
+{% endblock %}

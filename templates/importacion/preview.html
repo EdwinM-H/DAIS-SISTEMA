@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Vista previa{% endblock %}
+{% block page_title %}Importar datos{% endblock %}
+{% block content %}
+{{ m.page_head('Vista previa: ' ~ tipo_nombre, filename ~ ' → semestre ' ~ semestre_actual.codigo, [('Importar', url_for('importacion.index')), ('Vista previa', None)]) }}
+
+{% if preview.error %}
+<div class="alert alert-danger">{{ preview.error }}</div>
+<a href="{{ url_for('importacion.index') }}" class="btn">Volver</a>
+{% elif tipo == 'ficha_integral' %}
+<div class="kpis">
+    <div class="kpi kpi-green"><span class="kpi-label">Docentes validos</span><span class="kpi-value">{{ preview.registros|length }}</span><span class="kpi-sub">Hoja "{{ preview.hoja }}"</span></div>
+    <div class="kpi kpi-red"><span class="kpi-label">Filas rechazadas</span><span class="kpi-value">{{ preview.rechazados|length }}</span><span class="kpi-sub">no se importaran</span></div>
+    <div class="kpi kpi-gold"><span class="kpi-label">Capacitaciones</span><span class="kpi-value">{{ preview.capacitaciones|length }}</span><span class="kpi-sub">hoja CAPACITACIONES</span></div>
+    <div class="kpi kpi-purple"><span class="kpi-label">Investigaciones</span><span class="kpi-value">{{ preview.investigaciones|length }}</span><span class="kpi-sub">hoja INVESTIGACIONES</span></div>
+</div>
+<div class="grid grid-2 mb">
+    <div class="db-card"><div class="db-card__head"><h3 class="db-card__title">Columnas detectadas</h3></div>
+        <div class="db-card__body row">{% for c in preview.campos_detectados %}<span class="badge badge-success">{{ c }}</span>{% endfor %}</div></div>
+    <div class="db-card"><div class="db-card__head"><h3 class="db-card__title">No encontradas</h3></div>
+        <div class="db-card__body row">{% for c in preview.campos_faltantes %}<span class="badge badge-warning">{{ c }}</span>{% else %}<span class="muted small">Todas las columnas esperadas estan presentes.</span>{% endfor %}</div></div>
+</div>
+{% if preview.rechazados or preview.advertencias %}
+<div class="db-card mb">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('alert', 'width="17" height="17"') }} Revision</h3></div>
+    <div class="db-card__body small">
+        {% for r in preview.rechazados %}<div class="alert alert-danger">Fila {{ r.fila }} – {{ r.nombre }}: {{ r.errores|join('; ') }}</div>{% endfor %}
+        {% for a in preview.advertencias %}<div class="alert alert-warning">{{ a }}</div>{% endfor %}
+    </div>
+</div>
+{% endif %}
+<div class="db-card">
+    <div class="db-card__head"><h3 class="db-card__title">Registros a importar</h3><input type="search" class="form-control" style="max-width:240px;" placeholder="Filtrar..." data-filter="tablaPrev"></div>
+    <div class="table-container" style="max-height:480px;overflow:auto;">
+        <table id="tablaPrev">
+            <thead><tr><th>Fila</th><th>Apellidos y nombres</th><th>Modalidad</th><th class="num">Encuesta</th><th class="num">Subtotal normas</th><th class="num">Normas</th><th class="num">Autoeval.</th><th class="num">Promedio</th><th>Clasificacion</th></tr></thead>
+            <tbody>
+            {% for r in preview.registros %}
+                <tr>
+                    <td class="muted">{{ r.fila }}</td><td class="cell-title">{{ r.nombre_completo }}</td><td class="muted">{{ r.modalidad or '-' }}</td>
+                    <td class="num">{{ r.encuesta|nota }}</td><td class="num">{{ r.subtotal_normas|nota }}</td><td class="num">{{ r.normas|nota }}</td>
+                    <td class="num">{{ r.autoevaluacion|nota }}</td><td class="num strong">{{ r.promedio_final|nota(4) }}</td><td>{{ m.clasif(r.clasificacion) }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="db-card">
+    <div class="db-card__head"><h3 class="db-card__title">{{ preview.total }} filas encontradas</h3>
+        <div class="row">{% for k, v in preview.mapeo.items() %}<span class="badge badge-info">{{ k }} → {{ v }}</span>{% endfor %}</div></div>
+    <div class="table-container">
+        <table>
+            <thead><tr>{% for c in preview.columnas %}<th>{{ c }}</th>{% endfor %}</tr></thead>
+            <tbody>{% for f in preview.filas %}<tr>{% for v in f %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if not preview.error %}
+<div class="form-actions mt">
+    <form method="post" action="{{ url_for('importacion.cancelar') }}">{{ m.csrf() }}<button class="btn">Cancelar</button></form>
+    <form method="post" action="{{ url_for('importacion.confirmar') }}">{{ m.csrf() }}<button class="btn btn-success">{{ m.icon('check') }} Confirmar importacion</button></form>
+</div>
+{% endif %}
+{% endblock %}

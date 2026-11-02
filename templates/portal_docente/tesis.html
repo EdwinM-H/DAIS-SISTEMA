@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Mis tesis{% endblock %}
+{% block page_title %}Mis tesis{% endblock %}
+{% block content %}
+{{ m.page_head('Tesis en las que participo', 'Tesis donde fue designado(a) como asesor, dictaminante o jurado.') }}
+<div class="db-card">
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Codigo</th><th>Titulo / tesistas</th><th>Mi rol</th><th>Mi revision</th><th>Estado de la tesis</th><th></th></tr></thead>
+            <tbody>
+            {% for mb in roles %}
+                <tr>
+                    <td class="strong nowrap">{{ mb.tesis.codigo }}</td>
+                    <td><div class="cell-title truncate" title="{{ mb.tesis.titulo }}">{{ mb.tesis.titulo }}</div><div class="cell-sub">{{ mb.tesis.estudiantes_texto }}</div></td>
+                    <td><span class="badge badge-outline">{{ mb.rol_nombre }}</span></td>
+                    <td>{% if mb.emite_dictamen %}{{ m.estado(mb.estado_revision, mb.estado_nombre) }}{% else %}<span class="muted small">-</span>{% endif %}</td>
+                    <td>{{ m.estado(mb.tesis.estado, mb.tesis.estado_nombre) }}</td>
+                    <td><a class="btn btn-xs {{ 'btn-primary' if mb.emite_dictamen and mb.estado_revision == 'pendiente' and mb.tesis.versiones }}" href="{{ url_for('docente.tesis_detalle', tesis_id=mb.tesis.id) }}">{{ 'Revisar' if mb.emite_dictamen and mb.estado_revision == 'pendiente' else 'Ver' }}</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6">{{ m.empty('No tiene tesis asignadas', 'Cuando la Direccion lo designe, la tesis aparecera aqui y recibira una notificacion.', 'book') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

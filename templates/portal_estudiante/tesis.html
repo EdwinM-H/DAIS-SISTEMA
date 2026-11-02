@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Mi tesis{% endblock %}
+{% block page_title %}Mi tesis{% endblock %}
+{% block content %}
+{% set vb, total = tesis.progreso_dictamen %}
+<section class="hero">
+    <div style="max-width:760px;">
+        <p style="opacity:.75;margin:0 0 4px;">{{ tesis.codigo }} · {{ tesis.modalidad or 'Tesis' }}</p>
+        <h2 style="font-size:1.2rem;line-height:1.35;">{{ tesis.titulo }}</h2>
+        <p>Asesor: {{ tesis.asesor.docente.nombre_natural if tesis.asesor else 'por asignar' }}</p>
+    </div>
+    <div class="hero-rank">
+        <div class="rank-circle"><span>Vistos buenos</span><strong>{{ vb }}/{{ total }}</strong><span>dictaminantes</span></div>
+    </div>
+</section>
+
+{% set observados = tesis.dictaminantes|selectattr('estado_revision', 'equalto', 'observado')|list %}
+{% if observados %}
+<div class="callout gold mb">Tiene <strong>{{ observados|length }}</strong> observacion(es) por levantar. Revise los comentarios de sus dictaminantes y suba la version corregida.</div>
+{% elif tesis.estado == 'dictamen_favorable' %}
+<div class="callout green mb">¡Felicitaciones! Su tesis obtuvo todos los vistos buenos. La Direccion programara su sustentacion.</div>
+{% endif %}
+
+{% if tesis.estado not in ('sustentada', 'anulada', 'sustentacion_programada') %}
+<div class="db-card mb">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('upload', 'width="17" height="17"') }} Enviar documento</h3></div>
+    <div class="db-card__body">
+        <form method="post" action="{{ url_for('estudiante.subir_version', tesis_id=tesis.id) }}" enctype="multipart/form-data" class="form-grid">
+            {{ m.csrf() }}
+            <div class="form-group"><label class="required">Archivo de la tesis (PDF o Word)</label><input type="file" name="archivo" accept=".pdf,.doc,.docx" class="form-control" required></div>
+            <div class="form-group"><label>Comentario para sus revisores</label><input name="comentario" class="form-control" placeholder="Ej.: se levantaron las observaciones del capitulo 3"></div>
+            <div class="form-actions full"><button class="btn btn-primary">Enviar version {{ (tesis.versiones|length) + 1 }}</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% set mostrar_retiro = False %}
+{% include "_tesis_seguimiento.html" %}
+{% endblock %}

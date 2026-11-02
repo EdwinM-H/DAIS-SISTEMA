@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Tesis{% endblock %}
+{% block page_title %}Tesis{% endblock %}
+{% block content %}
+{% call m.page_head('Gestion de tesis', 'Registre proyectos de tesis, designe asesores y dictaminantes y haga seguimiento a los vistos buenos.') %}
+    {% if current_user.es_direccion %}<a class="btn btn-primary" href="{{ url_for('tesis.crear') }}">{{ m.icon('plus') }} Registrar tesis</a>{% endif %}
+{% endcall %}
+<div class="pills">
+    <a class="pill {{ 'active' if not estado }}" href="{{ url_for('tesis.index') }}">Todas <span class="n">{{ conteo.values()|sum }}</span></a>
+    {% for clave, nombre in estados.items() %}{% if conteo.get(clave) %}
+    <a class="pill {{ 'active' if estado == clave }}" href="{{ url_for('tesis.index', estado=clave) }}">{{ nombre }} <span class="n">{{ conteo.get(clave) }}</span></a>
+    {% endif %}{% endfor %}
+</div>
+<div class="db-card">
+    <form class="filters" method="get">
+        <input type="hidden" name="estado" value="{{ estado }}">
+        <div class="form-group" style="flex:1;"><label>Buscar</label><input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Titulo, codigo o apellido del estudiante"></div>
+        <button class="btn btn-primary">Buscar</button>
+    </form>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Codigo</th><th>Titulo / tesistas</th><th>Asesor</th><th>Dictamen</th><th>Estado</th><th>Registro</th><th></th></tr></thead>
+            <tbody>
+            {% for t in tesis %}
+                {% set vb, total = t.progreso_dictamen %}
+                <tr>
+                    <td class="nowrap strong">{{ t.codigo }}</td>
+                    <td><div class="cell-title truncate" title="{{ t.titulo }}">{{ t.titulo }}</div><div class="cell-sub">{{ t.estudiantes_texto }}</div></td>
+                    <td class="small">{{ t.asesor.docente.nombre_natural if t.asesor else '-' }}</td>
+                    <td style="min-width:120px;">{% if total %}<div class="small">{{ vb }}/{{ total }} vistos buenos</div><div class="progress {{ 'ok' if vb == total else 'warn' }}"><span style="width: {{ vb|pct(total) }}%"></span></div>{% else %}<span class="muted small">Sin dictaminantes</span>{% endif %}</td>
+                    <td>{{ m.estado(t.estado, t.estado_nombre) }}</td>
+                    <td class="muted small">{{ t.fecha_registro|fecha }}</td>
+                    <td><a class="btn btn-xs" href="{{ url_for('tesis.detalle', tesis_id=t.id) }}">Gestionar</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="7">{{ m.empty('No hay tesis registradas', 'Registre la primera tesis para asignar asesores y dictaminantes.', 'book') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

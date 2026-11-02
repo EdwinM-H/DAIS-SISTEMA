@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Credenciales{% endblock %}
+{% block page_title %}Usuarios y accesos{% endblock %}
+{% block content %}
+{% call m.page_head(titulo, 'Entregue estas credenciales a cada persona. Las contrasenas son temporales y no volveran a mostrarse.') %}
+    <button class="btn" type="button" id="btnCsv">{{ m.icon('download') }} Descargar CSV</button>
+    <button class="btn" type="button" onclick="window.print()">Imprimir</button>
+    <a class="btn btn-primary" href="{{ url_for('usuarios.index') if current_user.es_direccion else url_for('dashboard.index') }}">Listo</a>
+{% endcall %}
+<div class="callout gold mb">{{ m.icon('alert', 'width="16" height="16" style="vertical-align:-3px"') }} Al ingresar por primera vez, el sistema pedira cambiar la contrasena. Direccion de acceso: <strong>{{ request.host_url }}</strong></div>
+<div class="db-card">
+    <div class="table-container">
+        <table id="tablaCred">
+            <thead><tr><th>Nombre</th><th>Codigo / rol</th><th>Usuario</th><th>Contrasena temporal</th></tr></thead>
+            <tbody>
+            {% for c in credenciales %}
+                <tr><td class="cell-title">{{ c.nombre }}</td><td class="muted">{{ c.codigo }}</td><td><span class="cred-box">{{ c.username }}</span></td><td><span class="cred-box">{{ c.password }}</span></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('btnCsv').addEventListener('click', function () {
+    var filas = [['Nombre', 'Codigo', 'Usuario', 'Contrasena temporal']];
+    document.querySelectorAll('#tablaCred tbody tr').forEach(function (tr) {
+        filas.push(Array.prototype.map.call(tr.cells, function (td) { return td.textContent.trim(); }));
+    });
+    var csv = '﻿' + filas.map(function (f) { return f.map(function (v) { return '"' + v.replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'credenciales_dais.csv';
+    a.click();
+});
+</script>
+{% endblock %}

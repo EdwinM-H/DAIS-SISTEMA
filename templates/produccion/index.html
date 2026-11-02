@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% set es_cap = tipo == 'capacitaciones' %}
+{% block title %}{{ 'Capacitaciones' if es_cap else 'Investigaciones' }}{% endblock %}
+{% block page_title %}Produccion academica{% endblock %}
+{% block content %}
+{{ m.page_head('Capacitaciones docentes' if es_cap else 'Publicaciones e investigaciones', 'Revise los registros que suben los docentes. Solo los validados aparecen en la ficha de evaluacion.') }}
+<div class="pills">
+    {% for clave, nombre in estados.items() %}
+    <a class="pill {{ 'active' if estado == clave }}" href="{{ url_for('produccion.index', tipo=tipo, estado=clave, anio=anio, docente=docente_id) }}">{{ nombre }} <span class="n">{{ conteo.get(clave, 0) }}</span></a>
+    {% endfor %}
+    <a class="pill {{ 'active' if estado == 'todos' }}" href="{{ url_for('produccion.index', tipo=tipo, estado='todos', anio=anio, docente=docente_id) }}">Todos</a>
+</div>
+<div class="db-card">
+    <form class="filters" method="get">
+        <input type="hidden" name="estado" value="{{ estado }}">
+        <div class="form-group"><label>Anio</label>
+            <select name="anio" class="form-control"><option value="">Todos</option>{% for a in anios %}<option {{ 'selected' if anio == a|string }}>{{ a }}</option>{% endfor %}</select></div>
+        <div class="form-group" style="flex:1;"><label>Docente</label>
+            <select name="docente" class="form-control"><option value="">Todos</option>{% for d in docentes %}<option value="{{ d.id }}" {{ 'selected' if docente_id == d.id|string }}>{{ d.nombre_completo }}</option>{% endfor %}</select></div>
+        <button class="btn btn-primary">Filtrar</button>
+    </form>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Docente</th><th>{{ 'Capacitacion' if es_cap else 'Titulo' }}</th><th>Anio</th><th>{{ 'Horas' if es_cap else 'Tipo' }}</th><th>Origen</th><th>Estado</th><th>Respaldo</th><th></th></tr></thead>
+            <tbody>
+            {% for i in items %}
+                <tr>
+                    <td class="small nowrap">{{ i.docente.nombre_completo }}</td>
+                    <td>
+                        <div class="cell-title">{{ i.nombre if es_cap else i.titulo }}</div>
+                        <div class="cell-sub">
+                            {% if es_cap %}{{ i.tipo or '' }}{% if i.institucion %} · {{ i.institucion }}{% endif %}
+                            {% else %}{{ i.subtipo or '' }}{% if i.medio %} · {{ i.medio }}{% endif %}{% if i.enlace %} · <a href="{{ i.enlace if i.enlace.startswith('http') else 'https://doi.org/' ~ i.enlace.replace('doi:', '') }}" target="_blank" rel="noopener">enlace</a>{% endif %}{% endif %}
+                        </div>
+                        {% if i.observacion_validacion %}<div class="cell-sub" style="color:var(--danger);">Obs.: {{ i.observacion_validacion }}</div>{% endif %}
+                    </td>
+                    <td>{{ i.anio }}</td>
+                    <td>{{ (i.horas|nota(0) ~ ' h') if es_cap and i.horas else (i.tipo if not es_cap else '-') }}</td>
+                    <td><span class="badge badge-outline">{{ 'Excel DAIS' if i.origen == 'excel' else 'Docente' }}</span></td>
+                    <td>{{ m.estado(i.estado_validacion, i.estado_nombre) }}</td>
+                    <td>{% if i.archivo_ruta %}<a class="btn btn-xs" href="{{ url_for('archivos.descargar', tipo='capacitacion' if es_cap else 'investigacion', item_id=i.id) }}">{{ m.icon('clip') }} Ver</a>{% else %}<span class="muted small">-</span>{% endif %}</td>
+                    <td>
+                        <div class="table-actions">
+                            {% if i.estado_validacion != 'validado' %}
+                            <form method="post" action="{{ url_for('produccion.validar', tipo=tipo, item_id=i.id) }}">{{ m.csrf() }}<input type="hidden" name="estado" value="validado"><button class="btn btn-xs btn-success">Validar</button></form>
+                            {% endif %}
+                            <button type="button" class="btn btn-xs btn-danger" data-dialog="dlgObs" data-action="{{ url_for('produccion.validar', tipo=tipo, item_id=i.id) }}">Observar</button>
+                        </div>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8">{{ m.empty('No hay registros con este filtro', '', 'award' if es_cap else 'flask') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<dialog class="dlg" id="dlgObs">
+    <form method="post">
+        {{ m.csrf() }}<input type="hidden" name="estado" value="observado">
+        <div class="dlg-head"><h3>Observar registro</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+        <div class="dlg-body"><div class="form-group"><label class="required">Motivo (lo vera el docente)</label><textarea name="observacion" class="form-control" required placeholder="Ej.: adjunte el certificado; el anio no coincide..."></textarea></div></div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">Enviar observacion</button></div>
+    </form>
+</dialog>
+{% endblock %}

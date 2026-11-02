@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Importar datos{% endblock %}
+{% block page_title %}Importar datos{% endblock %}
+{% block content %}
+{{ m.page_head('Importar datos de evaluacion', 'Cargue la Ficha de Evaluacion Integral (Excel oficial) o archivos parciales. Siempre vera una vista previa antes de guardar.') }}
+{% if not semestre_actual %}
+<div class="db-card">{{ m.empty('Seleccione un semestre', 'Use el selector de la barra superior para elegir o crear el semestre de trabajo.', 'calendar') }}</div>
+{% else %}
+<div class="grid grid-main">
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('upload', 'width="17" height="17"') }} Cargar archivo</h3><span class="db-card__tag">Semestre {{ semestre_actual.codigo }}</span></div>
+        <div class="db-card__body">
+            <form method="post" action="{{ url_for('importacion.previsualizar') }}" enctype="multipart/form-data">
+                {{ m.csrf() }}
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="required">Tipo de informacion</label>
+                        <select name="tipo" class="form-control">
+                            {% for clave, nombre in tipos.items() %}<option value="{{ clave }}">{{ nombre }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="required">Archivo (.xlsx o .csv)</label>
+                        <input type="file" name="archivo" accept=".xlsx,.csv" required class="form-control">
+                    </div>
+                </div>
+                <div class="form-actions"><button class="btn btn-primary">{{ m.icon('eye') }} Previsualizar</button></div>
+            </form>
+            {% if archivo_disponible %}
+            <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">
+            <div class="row-between">
+                <span class="small muted">Archivo oficial disponible en el servidor: <strong>{{ archivo_disponible }}</strong></span>
+                <form method="post" action="{{ url_for('importacion.usar_disponible') }}">{{ m.csrf() }}<button class="btn btn-sm">Usar este archivo</button></form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">Como funciona</h3></div>
+        <div class="db-card__body small">
+            <p><strong>Ficha Integral:</strong> importa en un paso docentes, modalidad, encuesta, los 7 criterios de normas, autoevaluacion, promedio y clasificacion oficiales, ademas de las hojas <em>CAPACITACIONES</em> e <em>INVESTIGACIONES</em>.</p>
+            <p class="mt"><strong>Archivos parciales:</strong> una columna con el nombre del docente y otra con la nota (0 a 10). Para normas puede incluir los criterios.</p>
+            <p class="mt"><strong>Reimportar es seguro:</strong> los docentes se reconocen por su nombre (sin importar orden, tildes o mayusculas) y sus notas se actualizan sin duplicar registros.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="db-card mt">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('history', 'width="17" height="17"') }} Ultimas importaciones</h3></div>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Fecha</th><th>Archivo</th><th>Tipo</th><th>Semestre</th><th>Usuario</th><th class="num">Encontrados</th><th class="num">Nuevos</th><th class="num">Actualizados</th><th class="num">Rechazados</th><th></th></tr></thead>
+            <tbody>
+            {% for h in historial %}
+                <tr>
+                    <td class="nowrap">{{ h.fecha_importacion|fecha(true) }}</td>
+                    <td class="truncate">{{ h.nombre_archivo }}</td>
+                    <td>{{ h.tipo_nombre }}</td>
+                    <td>{{ h.semestre.codigo }}</td>
+                    <td class="muted">{{ h.usuario.username if h.usuario else 'consola' }}</td>
+                    <td class="num">{{ h.registros_encontrados }}</td>
+                    <td class="num">{{ h.registros_importados }}</td>
+                    <td class="num">{{ h.registros_actualizados }}</td>
+                    <td class="num">{% if h.registros_rechazados %}<span class="badge badge-danger">{{ h.registros_rechazados }}</span>{% else %}0{% endif %}</td>
+                    <td><a class="btn btn-xs" href="{{ url_for('importacion.detalle', imp_id=h.id) }}">Detalle</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="10" class="muted">Aun no hay importaciones.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

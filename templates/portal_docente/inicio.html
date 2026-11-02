@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Mi evaluacion{% endblock %}
+{% block page_title %}Mi evaluacion{% endblock %}
+{% block content %}
+<section class="hero">
+    <div>
+        <p style="opacity:.75;margin:0 0 2px;">Bienvenido(a),</p>
+        <h2>{{ docente.nombre_natural }}</h2>
+        <p>{{ docente.codigo }}{% if docente.grado_academico %} · {{ docente.grado_academico }}{% endif %} · {{ docente.escuela }}</p>
+        {% if semestres|length > 1 %}
+        <form method="get" class="row mt">
+            <select name="semestre" class="form-control" style="max-width:180px;" onchange="this.form.submit()">
+                {% for s in semestres %}<option value="{{ s.id }}" {{ 'selected' if semestre and s.id == semestre.id }}>{{ s.codigo }}</option>{% endfor %}
+            </select>
+        </form>
+        {% endif %}
+    </div>
+    {% if analisis %}
+    <div class="hero-rank">
+        <div class="rank-circle"><span>Puesto</span><strong>{{ analisis.puesto }}</strong><span>de {{ analisis.total }}</span></div>
+        <div class="hero-stats" style="flex-direction:column;gap:10px;">
+            <div class="hero-stat"><span>Semestre</span><strong>{{ semestre.codigo }}</strong></div>
+            <div class="hero-stat"><span>Promedio final</span><strong>{{ analisis.evaluacion.promedio_final|nota }}</strong></div>
+            <div class="hero-stat"><span>Clasificacion</span><strong>{{ analisis.evaluacion.clasificacion or '-' }}</strong></div>
+        </div>
+    </div>
+    {% endif %}
+</section>
+
+{% if tesis_pendientes %}
+<div class="callout gold mb">{{ m.icon('book', 'width="16" height="16" style="vertical-align:-3px"') }}
+    Tiene <strong>{{ tesis_pendientes|length }}</strong> tesis pendiente(s) de su dictamen:
+    {% for mb in tesis_pendientes %}<a href="{{ url_for('docente.tesis_detalle', tesis_id=mb.tesis.id) }}">{{ mb.tesis.codigo }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+</div>
+{% endif %}
+
+{% if analisis %}
+    {% include "_analisis.html" %}
+{% else %}
+<div class="db-card mb">{{ m.empty('Aun no hay resultados publicados', 'Cuando la Direccion del DAIS publique la evaluacion del semestre, aqui vera su puesto, sus notas y los puntos a mejorar.', 'target') }}</div>
+{% endif %}
+
+<div class="grid grid-2 mt">
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('award', 'width="17" height="17"') }} Mi produccion academica</h3></div>
+        <div class="db-card__body">
+            <div class="grid grid-3" style="gap:10px;">
+                <div class="kpi"><span class="kpi-label">Capacitaciones</span><span class="kpi-value">{{ resumen_produccion.capacitaciones }}</span></div>
+                <div class="kpi kpi-gold"><span class="kpi-label">Horas</span><span class="kpi-value">{{ resumen_produccion.horas|nota(0) }}</span></div>
+                <div class="kpi kpi-purple"><span class="kpi-label">Investigaciones</span><span class="kpi-value">{{ resumen_produccion.investigaciones }}</span></div>
+            </div>
+            {% if resumen_produccion.pendientes %}<p class="small muted mt">{{ resumen_produccion.pendientes }} registro(s) en revision u observados por el DAIS.</p>{% endif %}
+            <div class="row mt">
+                <a class="btn btn-sm" href="{{ url_for('docente.capacitaciones') }}">{{ m.icon('plus') }} Registrar capacitacion</a>
+                <a class="btn btn-sm" href="{{ url_for('docente.investigaciones') }}">{{ m.icon('plus') }} Registrar publicacion</a>
+            </div>
+        </div>
+    </div>
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('history', 'width="17" height="17"') }} Mi historial</h3></div>
+        <div class="table-container">
+            <table>
+                <thead><tr><th>Semestre</th><th class="num">Promedio</th><th>Clasificacion</th><th class="num">Puesto</th></tr></thead>
+                <tbody>
+                {% for h in historial %}
+                    <tr><td class="strong">{{ h.semestre.codigo }}</td><td class="num">{{ h.evaluacion.promedio_final|nota }}</td><td>{{ m.clasif(h.evaluacion.clasificacion) }}</td><td class="num">{{ h.posicion or '-' }} <span class="muted small">/ {{ h.total }}</span></td></tr>
+                {% else %}
+                    <tr><td colspan="4" class="muted">Sin semestres publicados.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

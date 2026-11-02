@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ docente.nombre_completo }}{% endblock %}
+{% block page_title %}Docentes{% endblock %}
+{% block content %}
+{% call m.page_head(docente.nombre_completo, docente.codigo ~ (' · ' ~ participacion.modalidad if participacion and participacion.modalidad else '') ~ (' · ' ~ docente.especialidad if docente.especialidad else ''), [('Docentes', url_for('docentes.index')), (docente.codigo, None)]) %}
+    <a class="btn" href="{{ url_for('docentes.editar', docente_id=docente.id) }}">{{ m.icon('edit') }} Editar datos</a>
+    <a class="btn" href="{{ url_for('docentes.evaluacion', docente_id=docente.id) }}">{{ m.icon('chart') }} Registrar / corregir notas</a>
+    {% if analisis and analisis.evaluacion.promedio_final is not none %}
+    <a class="btn btn-primary" href="{{ url_for('documentos.generar_individual', docente_id=docente.id, semestre_id=session_semestre_id) }}">{{ m.icon('download') }} Ficha Word</a>
+    {% endif %}
+{% endcall %}
+
+<div class="grid grid-main mb">
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">Informacion del docente</h3>{% if docente.estado == 'inactivo' %}<span class="badge badge-secondary">Inactivo</span>{% endif %}</div>
+        <div class="db-card__body">
+            <div class="info-grid">
+                {% for label, valor in [('DNI', docente.dni), ('Grado academico', docente.grado_academico), ('Categoria', docente.categoria_docente), ('Correo', docente.correo_institucional), ('Telefono', docente.telefono), ('Anios de servicio', docente.anios_servicio), ('Escuela', docente.escuela), ('Departamento', docente.departamento)] %}
+                <div class="info-item"><span class="info-label">{{ label }}</span><span>{{ valor if valor is not none and valor != '' else '-' }}</span></div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('shield', 'width="17" height="17"') }} Acceso al sistema</h3></div>
+        <div class="db-card__body">
+            {% if docente.usuario %}
+                <p>Usuario: <span class="cred-box">{{ docente.usuario.username }}</span></p>
+                <p class="small muted mt">Estado: {{ 'Activo' if docente.usuario.activo else 'Desactivado' }} · Ultimo acceso: {{ docente.usuario.ultimo_acceso|fecha(true) }}</p>
+            {% else %}
+                <p class="muted small">El docente aun no tiene cuenta para ingresar a su portal.</p>
+            {% endif %}
+            {% if current_user.es_direccion %}
+            <form method="post" action="{{ url_for('docentes.crear_cuenta', docente_id=docente.id) }}" class="mt" {% if docente.usuario %}data-confirm="Se generara una nueva contrasena temporal. ¿Continuar?"{% endif %}>
+                {{ m.csrf() }}
+                <button class="btn btn-sm {{ '' if docente.usuario else 'btn-primary' }}">{{ m.icon('key') }} {{ 'Restablecer contrasena' if docente.usuario else 'Crear cuenta de acceso' }}</button>
+            </form>
+            {% endif %}
+            <div class="row mt small">
+                <span class="badge badge-outline">{{ docente.capacitaciones|length }} capacitaciones</span>
+                <span class="badge badge-outline">{{ docente.investigaciones|length }} investigaciones</span>
+                <span class="badge badge-outline">{{ docente.tesis_roles|length }} participaciones en tesis</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if analisis %}
+    <h3 class="mb" style="color:var(--primary);">Evaluacion {{ session_semestre_codigo }} {% if analisis.evaluacion.editado_manual %}<span class="badge badge-purple">Editada manualmente</span>{% endif %}</h3>
+    {% include "_analisis.html" %}
+{% else %}
+    <div class="db-card mb">{{ m.empty('Sin evaluacion en ' ~ (session_semestre_codigo or 'el semestre'), 'Importe la ficha integral o registre las notas manualmente.', 'chart') }}</div>
+{% endif %}
+
+<div class="db-card mt">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('history', 'width="17" height="17"') }} Historial de evaluaciones</h3><a class="db-link" href="{{ url_for('ranking.comparativa', docente_id=docente.id) }}">Comparativa &rarr;</a></div>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Semestre</th><th class="num">Encuesta</th><th class="num">Normas</th><th class="num">Autoeval.</th><th class="num">Promedio</th><th>Clasificacion</th><th class="num">Puesto</th></tr></thead>
+            <tbody>
+                {% for h in historial %}
+                <tr>
+                    <td class="strong">{{ h.semestre.codigo }}</td>
+                    <td class="num">{{ h.evaluacion.encuesta|nota }}</td>
+                    <td class="num">{{ h.evaluacion.normas|nota }}</td>
+                    <td class="num">{{ h.evaluacion.autoevaluacion|nota }}</td>
+                    <td class="num strong">{{ h.evaluacion.promedio_final|nota }}</td>
+                    <td>{{ m.clasif(h.evaluacion.clasificacion) }}</td>
+                    <td class="num">{{ h.posicion or '-' }}{% if h.total %} <span class="muted small">/ {{ h.total }}</span>{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="muted">Sin evaluaciones registradas.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

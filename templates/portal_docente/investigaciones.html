@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Publicaciones e investigaciones{% endblock %}
+{% block page_title %}Publicaciones e investigaciones{% endblock %}
+{% block content %}
+{% call m.page_head('Publicaciones e investigaciones', 'Articulos, proyectos, libros y ponencias. Adjunte el documento o indique el enlace/DOI para su validacion.') %}
+    <button class="btn btn-primary" data-dialog="dlgInv" data-title="Nuevo registro" data-action="{{ url_for('docente.guardar_investigacion') }}"
+        data-fill-titulo="" data-fill-anio="{{ anio_actual }}" data-fill-tipo="Publicaciones" data-fill-subtipo="" data-fill-medio="" data-fill-enlace="" data-fill-rol-autor="">{{ m.icon('plus') }} Nuevo registro</button>
+{% endcall %}
+<div class="pills">
+    <a class="pill {{ 'active' if not tipo }}" href="{{ url_for('docente.investigaciones') }}">Todos</a>
+    {% for t in tipos %}<a class="pill {{ 'active' if tipo == t }}" href="{{ url_for('docente.investigaciones', tipo=t) }}">{{ t }}</a>{% endfor %}
+</div>
+<div class="db-card">
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Anio</th><th>Titulo</th><th>Tipo</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+            {% for i in items %}
+                <tr>
+                    <td class="strong">{{ i.anio }}</td>
+                    <td>
+                        <div class="cell-title">{{ i.titulo }}</div>
+                        <div class="cell-sub">{{ i.medio or '' }}{% if i.rol_autor %} · {{ i.rol_autor }}{% endif %}{% if i.enlace %} · <a href="{{ i.enlace if i.enlace.startswith('http') else 'https://doi.org/' ~ i.enlace.replace('doi:', '') }}" target="_blank" rel="noopener">ver enlace</a>{% endif %}</div>
+                        {% if i.observacion_validacion and i.estado_validacion == 'observado' %}<div class="cell-sub" style="color:var(--danger);">Observacion del DAIS: {{ i.observacion_validacion }}</div>{% endif %}
+                    </td>
+                    <td class="small">{{ i.tipo }}{% if i.subtipo %}<div class="cell-sub">{{ i.subtipo }}</div>{% endif %}</td>
+                    <td>{{ m.estado(i.estado_validacion, i.estado_nombre) }}</td>
+                    <td><div class="table-actions">
+                        {% if i.archivo_ruta %}<a class="btn btn-xs" href="{{ url_for('archivos.descargar', tipo='investigacion', item_id=i.id) }}">{{ m.icon('clip') }}</a>{% endif %}
+                        {% if not (i.origen == 'excel' and i.estado_validacion == 'validado') %}
+                        <button class="btn btn-xs" data-dialog="dlgInv" data-title="Editar registro" data-action="{{ url_for('docente.guardar_investigacion', item_id=i.id) }}"
+                            data-fill-titulo="{{ i.titulo }}" data-fill-anio="{{ i.anio }}" data-fill-tipo="{{ i.tipo }}" data-fill-subtipo="{{ i.subtipo or '' }}"
+                            data-fill-medio="{{ i.medio or '' }}" data-fill-enlace="{{ i.enlace or '' }}" data-fill-rol-autor="{{ i.rol_autor or '' }}">{{ m.icon('edit') }}</button>
+                        {% endif %}
+                        {% if i.estado_validacion != 'validado' %}
+                        <form method="post" action="{{ url_for('docente.eliminar_investigacion', item_id=i.id) }}" data-confirm="¿Eliminar este registro?">{{ m.csrf() }}<button class="btn btn-xs btn-danger">{{ m.icon('trash') }}</button></form>
+                        {% endif %}
+                    </div></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5">{{ m.empty('Sin registros', 'Agregue sus publicaciones, proyectos de investigacion o ponencias.', 'flask') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<dialog class="dlg" id="dlgInv">
+    <form method="post" enctype="multipart/form-data">
+        {{ m.csrf() }}
+        <div class="dlg-head"><h3>Registro</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+        <div class="dlg-body form-grid">
+            <div class="form-group full"><label class="required">Titulo</label><textarea name="titulo" class="form-control" required maxlength="600" style="min-height:60px;"></textarea></div>
+            <div class="form-group"><label class="required">Tipo</label><select name="tipo" class="form-control">{% for t in tipos %}<option>{{ t }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Subtipo</label><select name="subtipo" class="form-control"><option value="">-</option>{% for s in subtipos %}<option>{{ s }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label class="required">Anio</label><input name="anio" type="number" min="1950" max="{{ anio_actual + 1 }}" class="form-control" required></div>
+            <div class="form-group"><label>Participacion</label><select name="rol_autor" class="form-control"><option value="">-</option><option>Autor</option><option>Coautor</option><option>Investigador principal</option><option>Co-investigador</option></select></div>
+            <div class="form-group full"><label>Revista / editorial / evento</label><input name="medio" class="form-control"></div>
+            <div class="form-group full"><label>Enlace o DOI</label><input name="enlace" class="form-control" placeholder="https://... o 10.xxxx/xxxx"></div>
+            <div class="form-group full"><label>Documento de respaldo</label><input name="archivo" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" class="form-control"></div>
+        </div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">Guardar</button></div>
+    </form>
+</dialog>
+{% endblock %}

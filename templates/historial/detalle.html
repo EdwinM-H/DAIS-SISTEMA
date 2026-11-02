@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Historial {{ semestre.codigo }}{% endblock %}
+{% block page_title %}Historial{% endblock %}
+{% block content %}
+{{ m.page_head('Semestre ' ~ semestre.codigo, ranking|length ~ ' docentes con evaluacion completa', [('Historial', url_for('historial.index')), (semestre.codigo, None)]) }}
+<div class="grid grid-main">
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">Ranking del semestre</h3></div>
+        <div class="table-container" style="max-height:560px;overflow:auto;">
+            <table>
+                <thead><tr><th>Puesto</th><th>Docente</th><th class="num">Promedio</th><th>Clasificacion</th></tr></thead>
+                <tbody>
+                {% for r in ranking %}
+                    <tr><td>{{ m.puesto(r.posicion) }}</td><td><a href="{{ url_for('docentes.detalle', docente_id=r.docente.id) }}" style="text-decoration:none;" class="cell-title">{{ r.docente.nombre_completo }}</a></td>
+                        <td class="num strong">{{ r.promedio_final|nota }}</td><td>{{ m.clasif(r.clasificacion) }}</td></tr>
+                {% else %}
+                    <tr><td colspan="4" class="muted">Sin evaluaciones completas.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">Importaciones</h3></div>
+        <div class="db-card__body">
+            <ul class="timeline">
+            {% for i in importaciones %}
+                <li><strong>{{ i.tipo_nombre }}</strong> — {{ i.nombre_archivo }}<br>
+                    <span class="small">{{ i.registros_importados }} nuevos · {{ i.registros_actualizados }} actualizados · {{ i.registros_rechazados }} rechazados</span>
+                    <div class="when">{{ i.fecha_importacion|fecha(true) }} · {{ i.usuario.username if i.usuario else 'consola' }} · <a href="{{ url_for('importacion.detalle', imp_id=i.id) }}">detalle</a></div></li>
+            {% else %}
+                <li class="muted">Sin importaciones.</li>
+            {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

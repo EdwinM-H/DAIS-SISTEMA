@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Nuevo usuario{% endblock %}
+{% block page_title %}Usuarios y accesos{% endblock %}
+{% block content %}
+{{ m.page_head('Nuevo usuario de gestion', 'Para docentes y estudiantes, cree la cuenta desde su ficha.', [('Usuarios', url_for('usuarios.index')), ('Nuevo', None)]) }}
+<form method="post" class="db-card" style="max-width:720px;">
+    {{ m.csrf() }}
+    <div class="db-card__body form-grid">
+        <div class="form-group"><label class="required">Usuario</label><input name="username" class="form-control" required pattern="[A-Za-z0-9._-]{3,40}"></div>
+        <div class="form-group"><label class="required">Rol</label>
+            <select name="rol" class="form-control">{% for k, v in roles.items() %}<option value="{{ k }}" {{ 'selected' if k == 'operador' }}>{{ v }}</option>{% endfor %}</select></div>
+        <div class="form-group full"><label class="required">Nombre completo</label><input name="nombre_completo" class="form-control" required></div>
+        <div class="form-group"><label>Correo</label><input name="email" type="email" class="form-control"></div>
+        <div class="form-group"><label>Contrasena inicial</label><input name="password" type="text" class="form-control" placeholder="Se genera automaticamente si se deja vacia"></div>
+        <div class="form-actions full"><a class="btn" href="{{ url_for('usuarios.index') }}">Cancelar</a><button class="btn btn-primary">Crear usuario</button></div>
+    </div>
+</form>
+<div class="callout mt" style="max-width:720px;"><strong>Roles:</strong> Director(a) y Administrador gestionan todo (usuarios, tesis, publicacion de resultados). Operador importa datos, registra notas, valida produccion y genera fichas.</div>
+{% endblock %}

@@ -1,0 +1,93 @@
+<div class="ficha">
+    {% if error %}
+    <div class="alert alert-warning" style="margin:20px;">{{ error }}</div>
+    {% else %}
+
+    <header class="ficha__cab">
+        <img src="{{ url_for('static', filename='images/logo_uac.png') }}" alt="UAC" class="ficha__logo">
+        <div class="ficha__cab-centro">
+            <p class="ficha__uni">UNIVERSIDAD ANDINA DEL CUSCO</p>
+            <p class="ficha__esc">Escuela Profesional de Ingenier&iacute;a de Sistemas</p>
+            <h2 class="ficha__titulo">FICHA DE EVALUACI&Oacute;N INTEGRAL DOCENTE</h2>
+            <p class="ficha__sem">Semestre Acad&eacute;mico: <strong>{{ ctx.semestre.codigo }}</strong></p>
+        </div>
+        <img src="{{ url_for('static', filename='images/EPIS.png') }}" alt="EPIS" class="ficha__logo ficha__logo--epis">
+    </header>
+
+    <!-- DATOS DEL DOCENTE -->
+    <section class="ficha__seccion">
+        <h3 class="ficha__subtitulo">I. Datos del Docente</h3>
+        <table class="ficha__tabla">
+            <tr>
+                <td class="ficha__etq">C&oacute;digo:</td><td>{{ ctx.mapping.CODIGO }}</td>
+                <td class="ficha__etq">Modalidad:</td><td>{{ ctx.mapping.MODALIDAD }}</td>
+            </tr>
+            <tr>
+                <td class="ficha__etq">Apellidos y Nombres:</td><td colspan="3"><strong>{{ ctx.mapping.NOMBRE }}</strong></td>
+            </tr>
+            <tr>
+                <td class="ficha__etq">Escuela Profesional:</td><td>Ingenier&iacute;a de Sistemas</td>
+                <td class="ficha__etq">Departamento:</td><td>Ingenier&iacute;a de Sistemas</td>
+            </tr>
+            <tr>
+                <td class="ficha__etq">Fecha de evaluaci&oacute;n:</td><td>{{ ctx.mapping.FECHA }}</td>
+                <td class="ficha__etq">Posici&oacute;n en ranking:</td><td><strong>{{ ctx.mapping.POSICION }}</strong></td>
+            </tr>
+        </table>
+    </section>
+
+    <!-- CUMPLIMIENTO DE NORMAS -->
+    <section class="ficha__seccion">
+        <h3 class="ficha__subtitulo">II. Cumplimiento de Normas (40%)</h3>
+        <table class="ficha__tabla ficha__tabla--notas">
+            <thead>
+                <tr><th>Criterio</th><th style="width:110px;">Puntaje</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Asistencia a reuniones</td><td class="num">{{ ctx.mapping.REUNIONES }}</td></tr>
+                <tr><td>Presentaci&oacute;n de s&iacute;labos</td><td class="num">{{ ctx.mapping.SILABOS }}</td></tr>
+                <tr><td>Registro de notas / configuraci&oacute;n</td><td class="num">{{ ctx.mapping.NOTAS }}</td></tr>
+                <tr><td>Horas lectivas dictadas</td><td class="num">{{ ctx.mapping.HRS }}</td></tr>
+                <tr><td>Puntualidad</td><td class="num">{{ ctx.mapping.PUNTUAL }}</td></tr>
+                <tr><td>Subida de notas al ERP</td><td class="num">{{ ctx.mapping.ERP }}</td></tr>
+                <tr><td>Designaci&oacute;n de delegados</td><td class="num">{{ ctx.mapping.DELEGADO }}</td></tr>
+                <tr class="ficha__fila-final"><td>Promedio Normas (/10)</td><td class="num"><strong>{{ '%.2f'|format(ctx.evaluacion.normas) if ctx.evaluacion.normas is not none else '-' }}</strong></td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- RESULTADOS -->
+    <section class="ficha__seccion">
+        <h3 class="ficha__subtitulo">III. Resultados de la Evaluaci&oacute;n</h3>
+        <table class="ficha__tabla ficha__tabla--notas">
+            <thead>
+                <tr><th>Componente</th><th style="width:90px;">Peso</th><th style="width:110px;">Nota</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Encuesta Estudiantil</td><td>40%</td><td class="num">{{ ctx.mapping.NOTA_ENC }}</td></tr>
+                <tr><td>Cumplimiento de Normas</td><td>40%</td><td class="num">{{ '%.2f'|format(ctx.evaluacion.normas) if ctx.evaluacion.normas is not none else '-' }}</td></tr>
+                <tr><td>Autoevaluaci&oacute;n</td><td>20%</td><td class="num">{{ ctx.mapping.NOTA_AUTO }}</td></tr>
+                <tr class="ficha__fila-final"><td>PROMEDIO FINAL</td><td>100%</td><td class="num"><strong>{{ ctx.mapping.PROMEDIO }}</strong></td></tr>
+                <tr><td>Clasificaci&oacute;n</td><td colspan="2"><strong>{{ ctx.mapping.CLASIF }}</strong></td></tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- CAPACITACION -->
+    <section class="ficha__seccion">
+        <h3 class="ficha__subtitulo">IV. Capacitaci&oacute;n</h3>
+        <p class="ficha__texto">{{ ctx.capacitaciones }}</p>
+    </section>
+
+    <!-- PUBLICACIONES -->
+    <section class="ficha__seccion">
+        <h3 class="ficha__subtitulo">V. Publicaciones Realizadas</h3>
+        <p class="ficha__texto">{{ ctx.publicaciones }}</p>
+    </section>
+
+    <footer class="ficha__pie">
+        <span>Documento generado autom&aacute;ticamente por DAIS &middot; {{ ctx.fecha }}</span>
+    </footer>
+
+    {% endif %}
+</div>

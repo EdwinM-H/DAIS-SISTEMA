@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Estudiantes{% endblock %}
+{% block page_title %}Tesis{% endblock %}
+{% block content %}
+{{ m.page_head('Estudiantes tesistas', 'Los estudiantes se registran al crear una tesis. Desde aqui puede darles acceso para que sigan el avance de su tesis.') }}
+<div class="db-card">
+    <form class="filters" method="get">
+        <div class="form-group" style="flex:1;"><label>Buscar</label><input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Codigo, apellidos o nombres"></div>
+        <button class="btn btn-primary">Buscar</button>
+    </form>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Codigo</th><th>Estudiante</th><th>Tesis</th><th>Acceso</th><th></th></tr></thead>
+            <tbody>
+            {% for e in estudiantes %}
+                <tr>
+                    <td class="strong">{{ e.codigo }}</td>
+                    <td><div class="cell-title">{{ e.nombre_completo }}</div><div class="cell-sub">{{ e.correo or '' }}</div></td>
+                    <td class="small">{% for t in e.tesis %}<a href="{{ url_for('tesis.detalle', tesis_id=t.id) }}">{{ t.codigo }}</a> {{ m.estado(t.estado, t.estado_nombre) }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+                    <td>{% if e.usuario %}<span class="cred-box">{{ e.usuario.username }}</span>{% else %}<span class="muted small">Sin cuenta</span>{% endif %}</td>
+                    <td>{% if current_user.es_direccion %}
+                        <form method="post" action="{{ url_for('tesis.cuenta_estudiante', estudiante_id=e.id) }}" {% if e.usuario %}data-confirm="¿Generar nueva contrasena temporal?"{% endif %}>{{ m.csrf() }}<button class="btn btn-xs">{{ 'Restablecer acceso' if e.usuario else 'Dar acceso' }}</button></form>
+                    {% endif %}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5">{{ m.empty('Sin estudiantes registrados', 'Se agregan automaticamente al registrar una tesis.', 'cap') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

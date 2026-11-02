@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ 'Nuevo docente' if nuevo else 'Editar docente' }}{% endblock %}
+{% block page_title %}Docentes{% endblock %}
+{% block content %}
+{{ m.page_head('Nuevo docente' if nuevo else 'Editar: ' ~ docente.nombre_completo, None,
+   [('Docentes', url_for('docentes.index')), ('Nuevo' if nuevo else docente.codigo, None)]) }}
+<form method="post" class="db-card">
+    {{ m.csrf() }}
+    <div class="db-card__head"><h2 class="db-card__title">Datos personales y academicos</h2></div>
+    <div class="db-card__body">
+        <div class="form-grid-3">
+            <div class="form-group">
+                <label class="required">Codigo</label>
+                <input name="codigo" class="form-control" value="{{ docente.codigo }}" {{ 'readonly' if not nuevo }} required>
+            </div>
+            <div class="form-group">
+                <label>DNI</label>
+                <input name="dni" class="form-control" value="{{ docente.dni or '' }}" maxlength="15" pattern="[0-9A-Za-z-]*">
+            </div>
+            <div class="form-group">
+                <label>Anio de ingreso a la UAC</label>
+                <input name="anio_ingreso" type="number" min="1950" max="{{ anio_actual }}" class="form-control" value="{{ docente.anio_ingreso or '' }}">
+                <div class="form-hint">Se usa para calcular los anios de servicio en la ficha.</div>
+            </div>
+            <div class="form-group">
+                <label class="required">Apellidos</label>
+                <input name="apellidos" class="form-control" value="{{ docente.apellidos }}" required>
+            </div>
+            <div class="form-group">
+                <label class="required">Nombres</label>
+                <input name="nombres" class="form-control" value="{{ docente.nombres }}" required>
+            </div>
+            <div class="form-group">
+                <label>Estado</label>
+                <select name="estado" class="form-control">
+                    <option value="activo" {{ 'selected' if docente.estado != 'inactivo' }}>Activo</option>
+                    <option value="inactivo" {{ 'selected' if docente.estado == 'inactivo' }}>Inactivo</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Grado academico</label>
+                <input name="grado_academico" class="form-control" value="{{ docente.grado_academico or '' }}" placeholder="Magister, Doctor...">
+            </div>
+            <div class="form-group">
+                <label>Categoria</label>
+                <input name="categoria_docente" class="form-control" value="{{ docente.categoria_docente or '' }}" placeholder="Principal, Asociado...">
+            </div>
+            <div class="form-group">
+                <label>Especialidad</label>
+                <input name="especialidad" class="form-control" value="{{ docente.especialidad or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Correo institucional</label>
+                <input name="correo_institucional" type="email" class="form-control" value="{{ docente.correo_institucional or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Telefono</label>
+                <input name="telefono" class="form-control" value="{{ docente.telefono or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Departamento</label>
+                <input name="departamento" class="form-control" value="{{ docente.departamento or '' }}">
+            </div>
+            <div class="form-group full">
+                <label>Escuela profesional</label>
+                <input name="escuela" class="form-control" value="{{ docente.escuela or '' }}">
+            </div>
+        </div>
+        {% if session_semestre_codigo %}
+        <hr style="border:none;border-top:1px solid var(--border);margin:8px 0 14px;">
+        <div class="form-grid-3">
+            <div class="form-group">
+                <label>Modalidad en {{ session_semestre_codigo }}</label>
+                <input name="modalidad" class="form-control" list="modalidades" value="{{ participacion.modalidad if participacion and participacion.modalidad else '' }}">
+                <datalist id="modalidades"><option value="Contratado"><option value="Nombrado"><option value="Ordinario"></datalist>
+            </div>
+            {% if not nuevo and not participacion %}
+            <div class="form-group">
+                <label>&nbsp;</label>
+                <label style="font-weight:500;"><input type="checkbox" name="participa" value="1"> Agregar a {{ session_semestre_codigo }}</label>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        <div class="form-actions">
+            <a href="{{ url_for('docentes.index') if nuevo else url_for('docentes.detalle', docente_id=docente.id) }}" class="btn">Cancelar</a>
+            <button class="btn btn-primary">Guardar</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

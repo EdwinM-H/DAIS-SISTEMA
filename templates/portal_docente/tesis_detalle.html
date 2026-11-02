@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}{{ tesis.codigo }}{% endblock %}
+{% block page_title %}Mis tesis{% endblock %}
+{% block content %}
+{{ m.page_head(tesis.titulo, tesis.codigo ~ ' · Tesista(s): ' ~ tesis.estudiantes_texto, [('Mis tesis', url_for('docente.tesis')), (tesis.codigo, None)]) }}
+
+{% for mb in mios if mb.emite_dictamen %}
+<div class="db-card mb">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('check', 'width="17" height="17"') }} Mi dictamen</h3>{{ m.estado(mb.estado_revision, mb.estado_nombre) }}</div>
+    <div class="db-card__body">
+        {% if tesis.estado in ('sustentada', 'anulada') %}
+            <p class="muted">La tesis esta cerrada.</p>
+        {% elif not tesis.versiones %}
+            <div class="callout">El estudiante aun no ha subido el documento. Recibira una notificacion cuando este disponible.</div>
+        {% else %}
+            <p class="small mb">Revise la <a href="{{ url_for('archivos.descargar', tipo='tesis', item_id=tesis.version_actual.id) }}">version {{ tesis.version_actual.numero }}</a> y registre su dictamen.</p>
+            <form method="post" action="{{ url_for('docente.revision', miembro_id=mb.id) }}" enctype="multipart/form-data">
+                {{ m.csrf() }}
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="required">Dictamen</label>
+                        <select name="estado" class="form-control" required>
+                            <option value="visto_bueno" {{ 'selected' if mb.estado_revision == 'visto_bueno' }}>Visto bueno (aprobar)</option>
+                            <option value="observado" {{ 'selected' if mb.estado_revision == 'observado' }}>Observado (requiere correcciones)</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Informe / documento con observaciones</label><input type="file" name="archivo" accept=".pdf,.doc,.docx" class="form-control"></div>
+                    <div class="form-group full"><label>Observaciones</label><textarea name="observaciones" class="form-control" placeholder="Obligatorio si la tesis es observada">{{ mb.observaciones or '' }}</textarea></div>
+                </div>
+                <div class="form-actions"><button class="btn btn-primary">Registrar dictamen</button></div>
+            </form>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+
+{% if tesis.resumen %}<div class="db-card mb"><div class="db-card__body small"><strong>Resumen:</strong> {{ tesis.resumen }}</div></div>{% endif %}
+{% set mostrar_retiro = False %}
+{% include "_tesis_seguimiento.html" %}
+{% endblock %}

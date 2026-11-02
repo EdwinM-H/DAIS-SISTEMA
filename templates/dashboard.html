@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{# Mapa auxiliar de clasificaciones (solo lectura de datos ya existentes) #}
+{% set mapa_clas = {} %}
+{% for c in stats.clasificaciones or [] %}
+    {% if mapa_clas.update({c.clasificacion: c.cantidad}) %}{% endif %}
+{% endfor %}
+
+{% block content %}
+{% if stats.semestre_actual %}
+<div class="db-page">
+
+    <!-- 1. ENCABEZADO -->
+    <header class="db-hero">
+        <div class="db-hero__brand">
+            <div class="db-hero__mark">DAIS</div>
+            <div>
+                <h1 class="db-hero__title">Sistema de Evaluaci&oacute;n Docente</h1>
+                <p class="db-hero__sub">Panel general de gesti&oacute;n acad&eacute;mica &middot; Ing. de Sistemas</p>
+            </div>
+        </div>
+        <div class="db-hero__right">
+            <div class="db-sem">
+                <span class="db-sem__label">Semestre actual</span>
+                <span class="db-sem__value">{{ stats.semestre_actual.codigo }}</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2. INDICADORES PRINCIPALES -->
+    <section class="db-kpis">
+        <div class="db-kpi">
+            <div class="db-kpi__icon ic-blue">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div class="db-kpi__meta">
+                <div class="db-kpi__value">{{ stats.total_docentes }}</div>
+                <div class="db-kpi__label">Docentes</div>
+            </div>
+        </div>
+
+        <div class="db-kpi">
+            <div class="db-kpi__icon ic-navy">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
+            <div class="db-kpi__meta">
+                <div class="db-kpi__value">{{ stats.promedio_general if stats.promedio_general is not none else '-' }}</div>
+                <div class="db-kpi__label">Promedio General</div>
+            </div>
+        </div>
+
+        <div class="db-kpi">
+            <div class="db-kpi__icon ic-green">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <div class="db-kpi__meta">
+                <div class="db-kpi__value">{{ mapa_clas.get('Excelente', 0) }}</div>
+                <div class="db-kpi__label">Excelente</div>
+            </div>
+        </div>
+
+        <div class="db-kpi">
+            <div class="db-kpi__icon ic-teal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+            </div>
+            <div class="db-kpi__meta">
+                <div class="db-kpi__value">{{ mapa_clas.get('Muy Bueno', 0) }}</div>
+                <div class="db-kpi__label">Muy Bueno</div>
+            </div>
+        </div>
+
+        <div class="db-kpi">
+            <div class="db-kpi__icon ic-amber">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="db-kpi__meta">
+                <div class="db-kpi__value">{{ mapa_clas.get('Bueno', 0) }}</div>
+                <div class="db-kpi__label">Bueno</div>
+            </div>
+        </div>
+
+        <div class="db-kpi">
+            <div class="db-kpi__icon ic-gold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M17 5h3a2 2 0 0 1-1 3.87"/><path d="M7 5H4a2 2 0 0 0 1 3.87"/></svg>
+            </div>
+            <div class="db-kpi__meta">
+                <div class="db-kpi__value db-kpi__value--sm">{{ stats.mejor_promedio|nota }}</div>
+                <div class="db-kpi__label">{% if stats.mejor_docente %}{{ stats.mejor_docente }}{% else %}Mejor Promedio{% endif %}</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2b. GESTION DOCENTE -->
+    <section class="kpis" style="margin:0;">
+        <a class="kpi kpi-gold" href="{{ url_for('produccion.index', tipo='capacitaciones') }}" style="text-decoration:none;color:inherit;">
+            <span class="kpi-label">Produccion por validar</span><span class="kpi-value">{{ stats.pendientes_validacion }}</span><span class="kpi-sub">capacitaciones e investigaciones enviadas por docentes</span></a>
+        <a class="kpi kpi-purple" href="{{ url_for('tesis.index') }}" style="text-decoration:none;color:inherit;">
+            <span class="kpi-label">Tesis en proceso</span><span class="kpi-value">{{ stats.tesis_activas }}</span><span class="kpi-sub">{% for t in stats.tesis_por_estado %}{{ t.cantidad }} {{ t.estado|replace('_', ' ') }}{% if not loop.last %} · {% endif %}{% else %}sin tesis registradas{% endfor %}</span></a>
+        <a class="kpi kpi-green" href="{{ url_for('usuarios.index', rol='docente') if current_user.es_direccion else '#' }}" style="text-decoration:none;color:inherit;">
+            <span class="kpi-label">Docentes con acceso</span><span class="kpi-value">{{ stats.docentes_con_cuenta }}<small> / {{ stats.total_docentes }}</small></span><span class="kpi-sub">cuentas activas del portal docente</span></a>
+        <div class="kpi"><span class="kpi-label">Estado de evaluaciones</span><span class="kpi-value">{{ stats.evaluaciones_completas }}<small> completas</small></span><span class="kpi-sub">{{ stats.evaluaciones_parciales }} parciales · {{ stats.evaluaciones_pendientes }} sin evaluacion</span></div>
+    </section>
+
+    <!-- 3. GRÁFICOS PRINCIPALES -->
+    {% if stats.promedios_componentes %}
+    <section class="db-grid-charts">
+
+        {% if stats.promedios_componentes %}
+        <div class="db-card">
+            <div class="db-card__head">
+                <h2 class="db-card__title">Promedio por Dimensi&oacute;n</h2>
+                <span class="db-card__tag">Escala 0 - 10</span>
+            </div>
+            <div class="db-card__body">
+                <div class="db-chart"><canvas id="chartComponentes"></canvas></div>
+                <div class="db-chips">
+                    <span class="db-chip">Encuesta <strong>{{ '%.2f'|format(stats.promedios_componentes.encuesta) }}</strong></span>
+                    <span class="db-chip">Normas <strong>{{ '%.2f'|format(stats.promedios_componentes.normas) }}</strong></span>
+                    <span class="db-chip">Autoeval. <strong>{{ '%.2f'|format(stats.promedios_componentes.autoevaluacion) }}</strong></span>
+                    <span class="db-chip db-chip--final">Prom. Final <strong>{{ '%.2f'|format(stats.promedios_componentes.promedio_final) }}</strong></span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if stats.clasificaciones %}
+        <div class="db-card">
+            <div class="db-card__head">
+                <h2 class="db-card__title">Distribuci&oacute;n por Clasificaci&oacute;n</h2>
+                <span class="db-card__tag">{{ stats.total_docentes }} docentes</span>
+            </div>
+            <div class="db-card__body">
+                <div class="db-chart db-chart--donut"><canvas id="chartClasificacion"></canvas></div>
+            </div>
+        </div>
+        {% endif %}
+
+    </section>
+    {% endif %}
+
+    <!-- 4. RANKING + INFORMACIÓN COMPLEMENTARIA -->
+    {% if stats.ranking %}
+    <section class="db-grid-main">
+
+        {% if stats.ranking %}
+        <div class="db-card">
+            <div class="db-card__head">
+                <h2 class="db-card__title">Ranking de Docentes</h2>
+                <a href="{{ url_for('ranking.index') }}" class="db-link">Ver completo &rarr;</a>
+            </div>
+            <div class="table-container">
+                <table class="db-table">
+                    <thead>
+                        <tr>
+                            <th style="width:52px;">Puesto</th>
+                            <th>Docente</th>
+                            <th style="width:110px;">Modalidad</th>
+                            <th class="num" style="width:90px;">Promedio</th>
+                            <th style="width:120px;">Clasificaci&oacute;n</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in stats.ranking[:8] %}
+                        <tr>
+                            <td>
+                                {% if r.posicion == 1 %}<span class="db-medal">&#129351;</span>
+                                {% elif r.posicion == 2 %}<span class="db-medal">&#129352;</span>
+                                {% elif r.posicion == 3 %}<span class="db-medal">&#129353;</span>
+                                {% else %}<span class="db-rank-num">{{ r.posicion }}</span>{% endif %}
+                            </td>
+                            <td class="db-docente"><a href="{{ url_for('docentes.detalle', docente_id=r.docente.id) }}" style="color:inherit;text-decoration:none;">{{ r.docente.nombre_completo }}</a></td>
+                            <td class="db-muted">{{ r.modalidad or '-' }}</td>
+                            <td class="num"><strong>{{ r.promedio_final|nota }}</strong></td>
+                            <td>
+                                {% if r.clasificacion %}
+                                <span class="badge {{ 'badge-success' if r.clasificacion == 'Excelente' else ('badge-info' if r.clasificacion == 'Muy Bueno' else ('badge-warning' if r.clasificacion == 'Bueno' else ('badge-secondary' if r.clasificacion == 'Regular' else 'badge-danger'))) }}">{{ r.clasificacion }}</span>
+                                {% else %}-{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="db-stack">
+
+            {% if stats.evaluaciones_completas is defined %}
+            <div class="db-card">
+                <div class="db-card__head">
+                    <h2 class="db-card__title">Estado de Evaluaciones</h2>
+                </div>
+                <div class="db-card__body">
+                    <div class="db-state">
+                        <div class="db-state__row">
+                            <span class="db-state__label">Completas</span>
+                            <div class="db-bar"><span class="db-bar__fill db-bar__fill--ok" style="width: {{ (stats.evaluaciones_completas * 100 / stats.total_docentes)|round(0, 'floor') if stats.total_docentes else 0 }}%;"></span></div>
+                            <span class="db-state__num">{{ stats.evaluaciones_completas }}</span>
+                        </div>
+                        <div class="db-state__row">
+                            <span class="db-state__label">Parciales</span>
+                            <div class="db-bar"><span class="db-bar__fill db-bar__fill--warn" style="width: {{ (stats.evaluaciones_parciales * 100 / stats.total_docentes)|round(0, 'floor') if stats.total_docentes else 0 }}%;"></span></div>
+                            <span class="db-state__num">{{ stats.evaluaciones_parciales }}</span>
+                        </div>
+                        <div class="db-state__row">
+                            <span class="db-state__label">Sin eval.</span>
+                            <div class="db-bar"><span class="db-bar__fill db-bar__fill--bad" style="width: {{ (stats.evaluaciones_pendientes * 100 / stats.total_docentes)|round(0, 'floor') if stats.total_docentes else 0 }}%;"></span></div>
+                            <span class="db-state__num">{{ stats.evaluaciones_pendientes }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if stats.distribucion_puntajes %}
+            <div class="db-card">
+                <div class="db-card__head"><h2 class="db-card__title">Distribucion del promedio final</h2><span class="db-card__tag">escala 0 - 10</span></div>
+                <div class="db-card__body"><div class="db-chart db-chart--small"><canvas id="chartDistribucion"></canvas></div></div>
+            </div>
+            {% endif %}
+
+            {% if stats.evolucion_semestres and stats.evolucion_semestres|length > 1 %}
+            <div class="db-card">
+                <div class="db-card__head">
+                    <h2 class="db-card__title">Comparativa entre Semestres</h2>
+                </div>
+                <div class="db-card__body">
+                    <div class="db-chart db-chart--small"><canvas id="chartEvolucion"></canvas></div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </section>
+    {% endif %}
+
+</div>
+
+{% else %}
+<div class="db-empty">
+    <div class="db-card">
+        <div class="db-card__body" style="text-align:center;padding:56px 24px;">
+            <p style="font-size:1.05rem;font-weight:600;color:var(--primary);">No hay semestre seleccionado</p>
+            <p style="margin-top:6px;color:var(--text-light);font-size:.88rem;">Use el selector en la barra superior para elegir o crear un semestre.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if stats.semestre_actual %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+
+    /* ---------- Promedio por Dimensión ---------- */
+    {% if stats.promedios_componentes %}
+    (function() {
+        var el = document.getElementById('chartComponentes');
+        if (!el) return;
+        var comp = {{ stats.promedios_componentes | tojson }};
+        new Chart(el.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['Encuesta', 'Normas', 'Autoeval.', 'Final'],
+                datasets: [{
+                    data: [comp.encuesta, comp.normas, comp.autoevaluacion, comp.promedio_final],
+                    backgroundColor: ['#3182CE', '#2B6CB0', '#63B3ED', '#1A365D'],
+                    borderRadius: 6,
+                    maxBarThickness: 46
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1A365D',
+                        padding: 10,
+                        callbacks: { label: function(c) { return ' Promedio: ' + Number(c.parsed.y).toFixed(2); } }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, suggestedMax: 10, ticks: { precision: 0 }, grid: { color: '#EDF2F7' } },
+                    x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                }
+            }
+        });
+    })();
+    {% endif %}
+
+    /* ---------- Distribución por Clasificación (dona) ---------- */
+    {% if stats.clasificaciones %}
+    (function() {
+        var el = document.getElementById('chartClasificacion');
+        if (!el) return;
+        var datos = {{ stats.clasificaciones | tojson }};
+        var paleta = {
+            'excelente': '#38A169',
+            'muy bueno': '#3182CE',
+            'bueno': '#D69E2E',
+            'regular': '#718096',
+            'deficiente': '#E53E3E'
+        };
+        var alternativos = ['#3182CE', '#38A169', '#D69E2E', '#805AD5', '#E53E3E', '#718096'];
+        var colores = datos.map(function(d, i) {
+            return paleta[String(d.clasificacion).toLowerCase()] || alternativos[i % alternativos.length];
+        });
+        var totalGlobal = datos.reduce(function(a, d) { return a + d.cantidad; }, 0) || 1;
+
+        new Chart(el.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: datos.map(function(d) { return d.clasificacion; }),
+                datasets: [{
+                    data: datos.map(function(d) { return d.cantidad; }),
+                    backgroundColor: colores,
+                    borderWidth: 2,
+                    borderColor: '#FFFFFF',
+                    hoverOffset: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '58%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { usePointStyle: true, boxWidth: 8, padding: 14, font: { size: 11 } }
+                    },
+                    tooltip: {
+                        backgroundColor: '#1A365D',
+                        padding: 10,
+                        callbacks: {
+                            label: function(c) {
+                                var pct = ((c.parsed / totalGlobal) * 100).toFixed(1);
+                                return ' ' + c.label + ': ' + c.parsed + ' (' + pct + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    })();
+    {% endif %}
+
+    /* ---------- Comparativa entre Semestres ---------- */
+    {% if stats.evolucion_semestres and stats.evolucion_semestres|length > 1 %}
+    (function() {
+        var el = document.getElementById('chartEvolucion');
+        if (!el) return;
+        var data = {{ stats.evolucion_semestres | tojson }};
+        new Chart(el.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: data.map(function(d) { return d.semestre; }),
+                datasets: [{
+                    label: 'Promedio General',
+                    data: data.map(function(d) { return d.promedio; }),
+                    borderColor: '#3182CE',
+                    backgroundColor: 'rgba(49,130,206,0.10)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#1A365D'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1A365D',
+                        padding: 10,
+                        callbacks: { label: function(c) { return ' Promedio: ' + Number(c.parsed.y).toFixed(2); } }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, suggestedMax: 10, ticks: { precision: 1 }, grid: { color: '#EDF2F7' } },
+                    x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                }
+            }
+        });
+    })();
+    {% endif %}
+
+    /* ---------- Distribucion ---------- */
+    (function() {
+        var el = document.getElementById('chartDistribucion');
+        if (!el) return;
+        var d = {{ stats.distribucion_puntajes | tojson }};
+        new Chart(el.getContext('2d'), {
+            type: 'bar',
+            data: { labels: d.map(function(x) { return x.rango; }), datasets: [{ data: d.map(function(x) { return x.cantidad; }), backgroundColor: '#1F4E8C', borderRadius: 6, maxBarThickness: 40 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } }, x: { grid: { display: false } } } }
+        });
+    })();
+
+})();
+</script>
+{% endif %}
+{% endblock %}

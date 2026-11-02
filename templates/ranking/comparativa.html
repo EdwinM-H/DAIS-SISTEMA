@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Evolucion de {{ docente.nombre_completo }}{% endblock %}
+{% block page_title %}Ranking{% endblock %}
+{% block content %}
+{{ m.page_head('Evolucion entre semestres', docente.nombre_completo, [('Ranking', url_for('ranking.index')), (docente.codigo, url_for('docentes.detalle', docente_id=docente.id)), ('Evolucion', None)]) }}
+<div class="grid grid-2">
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">Promedio y puesto por semestre</h3></div>
+        <div class="db-card__body"><div style="height:280px;"><canvas id="chartEvo"></canvas></div></div>
+    </div>
+    <div class="db-card">
+        <div class="table-container">
+            <table>
+                <thead><tr><th>Semestre</th><th class="num">Encuesta</th><th class="num">Normas</th><th class="num">Autoeval.</th><th class="num">Promedio</th><th class="num">Puesto</th></tr></thead>
+                <tbody>
+                {% for h in historial %}
+                    <tr><td class="strong">{{ h.semestre.codigo }}</td><td class="num">{{ h.evaluacion.encuesta|nota }}</td><td class="num">{{ h.evaluacion.normas|nota }}</td>
+                        <td class="num">{{ h.evaluacion.autoevaluacion|nota }}</td><td class="num strong">{{ h.evaluacion.promedio_final|nota }}</td>
+                        <td class="num">{{ h.posicion or '-' }} <span class="muted small">/ {{ h.total }}</span></td></tr>
+                {% else %}
+                    <tr><td colspan="6" class="muted">Sin evaluaciones.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var datos = {{ historial|map(attribute='semestre.codigo')|list|tojson }};
+    var prom = {{ historial|map(attribute='evaluacion.promedio_final')|list|tojson }};
+    var pos = {{ historial|map(attribute='posicion')|list|tojson }};
+    new Chart(document.getElementById('chartEvo'), {
+        data: { labels: datos, datasets: [
+            { type: 'line', label: 'Promedio final', data: prom, borderColor: '#1F4E8C', backgroundColor: 'rgba(31,78,140,.12)', fill: true, tension: .3, yAxisID: 'y' },
+            { type: 'bar', label: 'Puesto', data: pos, backgroundColor: 'rgba(200,162,58,.55)', borderRadius: 6, yAxisID: 'y2', maxBarThickness: 30 }
+        ] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } },
+            scales: { y: { min: 0, max: 10, position: 'left' }, y2: { reverse: true, beginAtZero: false, position: 'right', grid: { display: false }, ticks: { precision: 0 } } } }
+    });
+})();
+</script>
+{% endblock %}

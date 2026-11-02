@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Ranking{% endblock %}
+{% block page_title %}Ranking{% endblock %}
+{% block content %}
+{% call m.page_head('Ranking docente ' ~ (semestre_actual.codigo if semestre_actual else ''), 'Promedio final = Encuesta × 40% + Normas × 40% + Autoevaluacion × 20%. Los empates comparten puesto.') %}
+    {% if ranking %}<a class="btn" href="{{ url_for('ranking.exportar') }}" data-no-lock>{{ m.icon('download') }} Exportar CSV</a>{% endif %}
+{% endcall %}
+{% if not semestre_actual %}
+<div class="db-card">{{ m.empty('Seleccione un semestre', '', 'calendar') }}</div>
+{% else %}
+<div class="pills">
+    <a class="pill {{ 'active' if not clasif }}" href="{{ url_for('ranking.index') }}">Todos</a>
+    {% for c in ['Excelente', 'Muy Bueno', 'Bueno', 'Regular', 'Insuficiente'] %}
+    <a class="pill {{ 'active' if clasif == c }}" href="{{ url_for('ranking.index', clasificacion=c) }}">{{ c }}</a>
+    {% endfor %}
+</div>
+<div class="db-card">
+    <div class="db-card__head"><h3 class="db-card__title">{{ ranking|length }} docentes</h3><input type="search" class="form-control" style="max-width:260px;" placeholder="Buscar docente..." data-filter="tablaRanking"></div>
+    <div class="table-container">
+        <table id="tablaRanking">
+            <thead><tr><th style="width:64px;">Puesto</th><th>Docente</th><th>Modalidad</th><th class="num">Encuesta</th><th class="num">Normas</th><th class="num">Autoeval.</th><th class="num">Promedio</th><th>Clasificacion</th><th></th></tr></thead>
+            <tbody>
+            {% for r in ranking %}
+                <tr>
+                    <td>{{ m.puesto(r.posicion) }}</td>
+                    <td><a class="cell-title" style="text-decoration:none;" href="{{ url_for('docentes.detalle', docente_id=r.docente.id) }}">{{ r.docente.nombre_completo }}</a></td>
+                    <td class="muted">{{ r.modalidad or '-' }}</td>
+                    <td class="num">{{ r.encuesta|nota }}</td>
+                    <td class="num">{{ r.normas|nota }}</td>
+                    <td class="num">{{ r.autoevaluacion|nota }}</td>
+                    <td class="num strong">{{ r.promedio_final|nota(4) }}</td>
+                    <td>{{ m.clasif(r.clasificacion) }}</td>
+                    <td><a class="btn btn-xs" href="{{ url_for('ranking.comparativa', docente_id=r.docente.id) }}">Evolucion</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="9">{{ m.empty('Sin evaluaciones completas', 'Importe la ficha integral para generar el ranking.', 'trophy') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

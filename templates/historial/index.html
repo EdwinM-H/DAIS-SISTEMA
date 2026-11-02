@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Historial{% endblock %}
+{% block page_title %}Historial{% endblock %}
+{% block content %}
+{{ m.page_head('Historial por semestre', 'Resumen de cada proceso de evaluacion realizado.') }}
+<div class="db-card">
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Semestre</th><th class="num">Docentes</th><th class="num">Evaluaciones</th><th class="num">Importaciones</th><th class="num">Promedio general</th><th>Resultados</th><th></th></tr></thead>
+            <tbody>
+            {% for d in datos %}
+                <tr>
+                    <td class="strong">{{ d.semestre.codigo }} {% if d.semestre.activo %}<span class="badge badge-success">Vigente</span>{% endif %}</td>
+                    <td class="num">{{ d.total_docentes }}</td>
+                    <td class="num">{{ d.total_evaluaciones }}</td>
+                    <td class="num">{{ d.total_importaciones }}</td>
+                    <td class="num strong">{{ d.promedio|nota }}</td>
+                    <td>{% if d.semestre.publicado %}<span class="badge badge-info">Publicados</span>{% else %}<span class="badge badge-secondary">No publicados</span>{% endif %}</td>
+                    <td><a class="btn btn-xs" href="{{ url_for('historial.detalle', semestre_id=d.semestre.id) }}">Ver detalle</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="7" class="muted">Sin semestres.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Historial de Fichas{% endblock %}
+{% block page_title %}Documentos{% endblock %}
+{% block content %}
+
+{% if not semestre_actual %}
+<div class="card" style="text-align:center;padding:40px;">
+    <p style="color:var(--text-light);">Seleccione un semestre primero.</p>
+</div>
+{% else %}
+
+<div class="db-page">
+    <header class="doc-hero">
+        <div class="doc-hero__text">
+            <h1 class="doc-hero__h1">Historial de fichas generadas</h1>
+            <p class="doc-hero__p">Documentos generados durante el semestre activo</p>
+        </div>
+        <div class="doc-sem">
+            <span class="doc-sem__label">Semestre actual</span>
+            <span class="doc-sem__value">{{ semestre_actual.codigo }}</span>
+        </div>
+    </header>
+
+    <section class="db-card">
+        <div class="db-card__head">
+            <h2 class="db-card__title">Fichas &mdash; {{ semestre_actual.codigo }} ({{ registros|length }})</h2>
+            <a href="{{ url_for('documentos.index') }}" class="db-link">&larr; Volver a Documentos</a>
+        </div>
+        <div class="table-container">
+            <table class="db-table">
+                <thead>
+                    <tr>
+                        <th>Semestre</th>
+                        <th>Docente</th>
+                        <th style="width:150px;">Fecha</th>
+                        <th>Documento</th>
+                        <th style="width:100px;">Tipo</th>
+                        <th style="width:95px;">Estado</th>
+                        <th style="width:110px;">Acci&oacute;n</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in registros %}
+                    <tr>
+                        <td class="db-muted">{{ r.semestre.codigo }}</td>
+                        <td>{{ r.docente.nombre_completo if r.docente else '-' }}</td>
+                        <td class="db-muted">{{ r.fecha_generacion.strftime('%d/%m/%Y %H:%M') if r.fecha_generacion else '-' }}</td>
+                        <td class="doc-archivo">{{ r.nombre_archivo }}</td>
+                        <td><span class="badge badge-secondary">{{ 'Masiva' if r.tipo == 'masivo' else 'Individual' }}</span></td>
+                        <td><span class="doc-estado doc-estado--ok">&#10003; Lista</span></td>
+                        <td><a class="btn btn-sm" href="{{ url_for('documentos.download', documento_id=r.id) }}">Descargar</a></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" style="text-align:center;color:var(--text-light);">A&uacute;n no se han generado fichas en este semestre.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+{% endif %}
+{% endblock %}

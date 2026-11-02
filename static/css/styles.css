@@ -1,0 +1,1281 @@
+:root {
+    --primary: #1A365D;
+    --primary-light: #3182CE;
+    --accent: #2B6CB0;
+    --success: #38A169;
+    --danger: #E53E3E;
+    --warning: #D69E2E;
+    --info: #3182CE;
+    --bg: #F7FAFC;
+    --sidebar-bg: #1A365D;
+    --sidebar-text: #E2E8F0;
+    --text: #2D3748;
+    --text-light: #718096;
+    --border: #E2E8F0;
+    --card-bg: #FFFFFF;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-lg: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+
+/* Layout */
+.layout { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+    width: 260px;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; bottom: 0; left: 0;
+    z-index: 100;
+}
+.sidebar-header {
+    padding: 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.sidebar-logo {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #fff;
+}
+.sidebar-header p {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    margin-top: 4px;
+}
+.sidebar-nav {
+    flex: 1;
+    padding: 12px 0;
+    overflow-y: auto;
+}
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.88rem;
+    transition: all 0.2s;
+}
+.sidebar-nav a:hover { background: rgba(255,255,255,0.1); }
+.sidebar-nav a.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 600; }
+.nav-icon { font-size: 0.9rem; opacity: 0.7; }
+.nav-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 8px 20px; }
+.sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+.user-info { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.user-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--primary-light); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem;
+}
+.user-name { display: block; font-size: 0.82rem; font-weight: 600; color: #fff; }
+.user-role { display: block; font-size: 0.7rem; opacity: 0.6; }
+.logout-btn {
+    display: block; text-align: center; padding: 8px;
+    color: var(--sidebar-text); text-decoration: none;
+    font-size: 0.8rem; opacity: 0.7; border-radius: var(--radius);
+    transition: all 0.2s;
+}
+.logout-btn:hover { background: rgba(255,255,255,0.1); opacity: 1; }
+
+/* Content */
+.content {
+    flex: 1;
+    margin-left: 260px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Top Header */
+.top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 28px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    position: sticky; top: 0; z-index: 50;
+}
+.top-header-left { display: flex; align-items: center; gap: 16px; }
+.page-title { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+.top-header-right { display: flex; align-items: center; gap: 20px; }
+
+/* Semester Selector */
+.semester-selector { position: relative; }
+.semester-trigger {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    cursor: pointer; transition: all 0.2s; font-size: 0.85rem;
+}
+.semester-trigger:hover { border-color: var(--accent); background: #fff; }
+.semester-label { color: var(--text-light); font-weight: 500; }
+.semester-value { color: var(--primary); font-weight: 700; }
+.semester-arrow { font-size: 0.65rem; color: var(--text-light); transition: transform 0.2s; }
+.semester-selector.open .semester-arrow { transform: rotate(180deg); }
+
+.semester-dropdown {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0;
+    width: 270px; background: #fff; border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); z-index: 200; overflow: hidden;
+}
+.semester-selector.open .semester-dropdown { display: block; }
+.semester-dropdown-title {
+    padding: 12px 14px 6px; font-size: 0.72rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-light);
+}
+.semester-list { max-height: 220px; overflow-y: auto; }
+.semester-list-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px; cursor: pointer; transition: background 0.15s;
+    font-size: 0.88rem; border: none; background: none; width: 100%; text-align: left;
+}
+.semester-list-item:hover { background: #f0f5ff; }
+.semester-list-item.active { background: #ebf4ff; color: var(--accent); font-weight: 600; }
+.semester-list-item .check { color: var(--accent); font-weight: 700; }
+.semester-list-empty { padding: 14px; text-align: center; color: var(--text-light); font-size: 0.82rem; }
+.semester-dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
+.semester-create-btn {
+    display: block; width: 100%; padding: 10px 14px; text-align: left;
+    background: none; border: none; cursor: pointer;
+    font-size: 0.85rem; color: var(--accent); font-weight: 500; transition: background 0.15s;
+}
+.semester-create-btn:hover { background: #f0f5ff; }
+
+/* Header User */
+.header-user {
+    display: flex; align-items: center; gap: 8px;
+    padding-left: 16px; border-left: 1px solid var(--border);
+}
+.user-avatar-sm {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--primary); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.75rem;
+}
+.header-user-name { font-size: 0.82rem; font-weight: 500; color: var(--text); }
+
+/* Content Body */
+.content-body { flex: 1; padding: 24px 28px; }
+
+/* Cards */
+.card {
+    background: var(--card-bg); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow); overflow: hidden;
+}
+.card-header {
+    padding: 14px 20px; font-weight: 600; font-size: 0.92rem;
+    border-bottom: 1px solid var(--border); color: var(--primary);
+}
+.card-body { padding: 20px; }
+
+/* Stats Grid */
+.stats-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px; margin-bottom: 24px;
+}
+.stat-card {
+    background: var(--card-bg); border-radius: var(--radius-lg);
+    padding: 20px; text-align: center; box-shadow: var(--shadow);
+}
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--primary); }
+.stat-label { font-size: 0.78rem; color: var(--text-light); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-sublabel { font-size: 0.72rem; color: var(--text-light); margin-top: 2px; }
+
+/* Table */
+.table-container { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { padding: 10px 14px; text-align: left; font-size: 0.78rem; font-weight: 600; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.3px; background: #F7FAFC; }
+td { padding: 10px 14px; border-top: 1px solid var(--border); font-size: 0.88rem; }
+tr:hover td { background: #F7FAFC; }
+
+/* Info Grid */
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.info-item { display: flex; flex-direction: column; }
+.info-label { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.3px; }
+
+/* Buttons */
+.btn {
+    display: inline-block; padding: 8px 16px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 0.85rem; font-weight: 500;
+    text-decoration: none; cursor: pointer; transition: all 0.2s;
+    background: #fff; color: var(--text); text-align: center;
+}
+.btn:hover { background: #EDF2F7; }
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-light); border-color: var(--primary-light); }
+.btn-block { display: block; width: 100%; }
+.btn-sm { padding: 5px 10px; font-size: 0.78rem; }
+
+/* Badges */
+.badge {
+    display: inline-block; padding: 3px 8px; border-radius: 20px;
+    font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.badge-success { background: #F0FFF4; color: #276749; }
+.badge-danger { background: #FFF5F5; color: #9B2C2C; }
+.badge-warning { background: #FFFFF0; color: #975A16; }
+.badge-info { background: #EBF8FF; color: #2B6CB0; }
+.badge-secondary { background: #EDF2F7; color: #4A5568; }
+
+/* Forms */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.form-control {
+    width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 0.88rem; transition: border-color 0.2s;
+}
+.form-control:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(49,130,206,0.1); }
+
+/* Alerts */
+.alert {
+    padding: 10px 16px; border-radius: var(--radius); margin-bottom: 12px;
+    font-size: 0.88rem; font-weight: 500;
+}
+.alert-danger { background: #FFF5F5; color: #9B2C2C; border: 1px solid #FED7D7; }
+.alert-success { background: #F0FFF4; color: #276749; border: 1px solid #C6F6D5; }
+.alert-warning { background: #FFFFF0; color: #975A16; border: 1px solid #FEFCBF; }
+.alert-info { background: #EBF8FF; color: #2B6CB0; border: 1px solid #BEE3F8; }
+
+/* Auth wrapper (login page outside base layout) */
+.auth-layout {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+/* ================================================================
+   DAIS Login — Institutional Professional Design
+   Universidad Andina del Cusco | EPIS
+   ================================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+.dais-login {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #070e1a;
+    overflow: hidden;
+}
+
+/* ---- Layer 1: Background image ---- */
+.dais-login__bg {
+    position: fixed;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 0;
+}
+
+/* ---- Layer 2: Navy semi-transparent overlay ---- */
+.dais-login__overlay {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(
+        160deg,
+        rgba(7, 14, 26, 0.88) 0%,
+        rgba(11, 31, 58, 0.82) 35%,
+        rgba(18, 59, 109, 0.76) 65%,
+        rgba(7, 14, 26, 0.90) 100%
+    );
+    z-index: 1;
+}
+
+/* ---- Layer 3: Vignette ---- */
+.dais-login__vignette {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(
+        ellipse 80% 80% at 50% 50%,
+        transparent 40%,
+        rgba(4, 8, 16, 0.55) 100%
+    );
+    z-index: 2;
+}
+
+/* ---- Layer 4: Subtle tech elements ---- */
+.dais-login__tech {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.tl {
+    position: absolute;
+    background: linear-gradient(to right, transparent, rgba(49,130,206,0.06), transparent);
+    height: 1px;
+}
+.tl-1 { top: 18%; left: 0; width: 35%; }
+.tl-2 { top: 72%; right: 0; width: 28%; left: auto; }
+.tl-3 { top: 45%; left: 5%; width: 20%; }
+.tl-4 { bottom: 22%; left: 10%; width: 15%; }
+.tl-5 { top: 30%; right: 8%; width: 18%; left: auto; }
+.tl-6 { bottom: 35%; right: 3%; width: 22%; left: auto; }
+
+.td {
+    position: absolute;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, rgba(49,130,206,0.04), transparent);
+}
+.td-1 { left: 22%; top: 10%; height: 25%; }
+.td-2 { right: 15%; top: 55%; height: 20%; }
+.td-3 { left: 8%; bottom: 15%; height: 18%; }
+
+.tc {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(49,130,206,0.04);
+}
+.tc-1 { width: 300px; height: 300px; top: -80px; right: -60px; }
+.tc-2 { width: 200px; height: 200px; bottom: -50px; left: -40px; }
+.tc-3 { width: 140px; height: 140px; top: 40%; left: 12%; }
+
+/* ---- Main Container ---- */
+.dais-login__container {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    width: 100%;
+    max-width: 1080px;
+    min-height: 600px;
+    max-height: 92vh;
+    margin: 0 auto;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow:
+        0 25px 80px rgba(0, 0, 0, 0.45),
+        0 4px 16px rgba(0, 0, 0, 0.25);
+    animation: daisFadeIn 0.7s ease-out;
+}
+
+@keyframes daisFadeIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---- Left: Institutional Brand Panel ---- */
+.dais-login__brand {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 44px 36px 28px;
+    background: linear-gradient(
+        170deg,
+        #0B1F3A 0%,
+        #0F2A4E 40%,
+        #123B6D 75%,
+        #0B1F3A 100%
+    );
+    position: relative;
+    overflow: hidden;
+}
+
+.dais-login__brand::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -30%;
+    width: 350px;
+    height: 350px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(49,130,206,0.07) 0%, transparent 70%);
+}
+
+.dais-login__brand::after {
+    content: '';
+    position: absolute;
+    bottom: -30%;
+    left: -25%;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(31,95,175,0.06) 0%, transparent 70%);
+}
+
+.dais-login__brand-inner {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    max-width: 300px;
+    animation: daisBrandIn 0.8s ease-out 0.15s both;
+}
+
+@keyframes daisBrandIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dais-login__brand-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.dais-login__logo-uac {
+    width: 96px;
+    height: auto;
+    max-height: 110px;
+    object-fit: contain;
+    margin-bottom: 14px;
+    filter: drop-shadow(0 2px 10px rgba(0,0,0,0.3));
+}
+
+.dais-login__uni {
+    display: flex;
+    flex-direction: column;
+}
+
+.dais-login__uni-prefix {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.45);
+    text-transform: uppercase;
+    letter-spacing: 3.5px;
+    margin-bottom: 2px;
+}
+
+.dais-login__uni-name {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+}
+
+.dais-login__divider {
+    width: 40px;
+    height: 1.5px;
+    background: linear-gradient(90deg, transparent, rgba(59,130,208,0.4), transparent);
+    margin: 22px auto;
+}
+
+.dais-login__title-block {
+    text-align: center;
+}
+
+.dais-login__title {
+    font-size: 2.6rem;
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 12px;
+    margin: 0 0 6px;
+    line-height: 1;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.25);
+}
+
+.dais-login__subtitle {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.8px;
+    margin: 0;
+}
+
+.dais-login__brand-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.dais-login__logo-epis {
+    width: 74px;
+    height: auto;
+    max-height: 85px;
+    object-fit: contain;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 2px 10px rgba(0,0,0,0.3));
+}
+
+.dais-login__dept {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.4;
+}
+
+.dais-login__dept span {
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: rgba(255,255,255,0.45);
+}
+
+.dais-login__dept strong {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+}
+
+.dais-login__brand-footer {
+    position: absolute;
+    bottom: 18px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    z-index: 1;
+}
+
+.dais-login__brand-footer p {
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.2);
+    letter-spacing: 0.3px;
+    margin: 0;
+}
+
+/* ---- Right: Login Panel ---- */
+.dais-login__panel {
+    width: 440px;
+    min-width: 380px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 36px;
+    background: linear-gradient(
+        180deg,
+        rgba(11,31,58,0.6) 0%,
+        rgba(7,14,26,0.7) 100%
+    );
+    backdrop-filter: blur(3px);
+    position: relative;
+}
+
+/* ---- Login Card ---- */
+.dais-login__card {
+    width: 100%;
+    max-width: 360px;
+    background: linear-gradient(180deg, #0E2240 0%, #0B1A32 100%);
+    border: 1px solid rgba(49,130,206,0.12);
+    border-radius: 16px;
+    padding: 34px 30px 28px;
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        0 12px 40px rgba(0,0,0,0.35),
+        0 2px 6px rgba(0,0,0,0.2),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+    animation: daisCardIn 0.6s ease-out 0.25s both;
+}
+
+@keyframes daisCardIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.dais-login__card-accent {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #1F5FAF, #3B82D0, #1F5FAF);
+}
+
+.dais-login__card-head {
+    text-align: center;
+    margin-bottom: 26px;
+}
+
+.dais-login__card-icon {
+    color: #3B82D0;
+    margin-bottom: 12px;
+}
+
+.dais-login__card-head h2 {
+    font-size: 1.18rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 4px;
+    letter-spacing: 0.3px;
+}
+
+.dais-login__card-head p {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.4);
+    margin: 0;
+    letter-spacing: 0.2px;
+}
+
+/* ---- Alerts ---- */
+.dais-login__alerts {
+    margin-bottom: 18px;
+}
+
+.dais-login__alert {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    animation: daisCardIn 0.3s ease-out;
+}
+
+.dais-login__alert--danger {
+    background: rgba(229,62,62,0.12);
+    color: #FC8181;
+    border: 1px solid rgba(229,62,62,0.2);
+}
+
+.dais-login__alert--success {
+    background: rgba(56,161,105,0.12);
+    color: #68D391;
+    border: 1px solid rgba(56,161,105,0.2);
+}
+
+.dais-login__alert--warning {
+    background: rgba(214,158,46,0.12);
+    color: #F6E05E;
+    border: 1px solid rgba(214,158,46,0.2);
+}
+
+.dais-login__alert--info {
+    background: rgba(49,130,206,0.12);
+    color: #63B3ED;
+    border: 1px solid rgba(49,130,206,0.2);
+}
+
+/* ---- Fields ---- */
+.dais-login__field {
+    margin-bottom: 18px;
+}
+
+.dais-login__field label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 6px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+
+.dais-login__input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.dais-login__input-icon {
+    position: absolute;
+    left: 14px;
+    color: rgba(255,255,255,0.25);
+    pointer-events: none;
+    transition: color 0.25s ease;
+}
+
+.dais-login__input {
+    width: 100%;
+    padding: 12px 42px 12px 42px;
+    border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    font-size: 0.88rem;
+    font-family: inherit;
+    color: #fff;
+    background: rgba(255,255,255,0.04);
+    transition: all 0.25s ease;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.dais-login__input::placeholder {
+    color: rgba(255,255,255,0.25);
+    font-weight: 400;
+}
+
+.dais-login__input:focus {
+    border-color: rgba(59,130,208,0.5);
+    background: rgba(255,255,255,0.06);
+    box-shadow: 0 0 0 3px rgba(49,130,206,0.1);
+}
+
+.dais-login__input-wrap:focus-within .dais-login__input-icon {
+    color: #3B82D0;
+}
+
+.dais-login__toggle {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(255,255,255,0.25);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    border-radius: 6px;
+}
+
+.dais-login__toggle:hover {
+    color: rgba(255,255,255,0.6);
+}
+
+/* ---- Submit Button ---- */
+.dais-login__btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 13px 24px;
+    margin-top: 6px;
+    background: linear-gradient(135deg, #1F5FAF 0%, #3B82D0 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow:
+        0 3px 12px rgba(31,95,175,0.35),
+        inset 0 1px 0 rgba(255,255,255,0.12);
+    letter-spacing: 0.4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.dais-login__btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.dais-login__btn:hover {
+    box-shadow:
+        0 6px 24px rgba(49,130,206,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.15);
+    transform: translateY(-1px);
+}
+
+.dais-login__btn:hover::before {
+    opacity: 1;
+}
+
+.dais-login__btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(31,95,175,0.3);
+}
+
+/* ---- Footer ---- */
+.dais-login__footer {
+    text-align: center;
+    margin-top: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.dais-login__footer span {
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.3px;
+}
+
+.dais-login__footer-sep {
+    font-size: 0.5rem !important;
+    color: rgba(255,255,255,0.15) !important;
+}
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+
+/* Tablet */
+@media (max-width: 1024px) {
+    .dais-login__container {
+        max-width: 900px;
+        margin: 0 16px;
+    }
+    .dais-login__brand {
+        padding: 36px 28px 24px;
+    }
+    .dais-login__logo-uac {
+        width: 82px;
+    }
+    .dais-login__logo-epis {
+        width: 64px;
+    }
+    .dais-login__title {
+        font-size: 2.2rem;
+        letter-spacing: 8px;
+    }
+    .dais-login__uni-name {
+        font-size: 1.25rem;
+    }
+    .dais-login__panel {
+        width: 400px;
+        min-width: 340px;
+        padding: 32px 28px;
+    }
+}
+
+/* Small tablet / large phone */
+@media (max-width: 768px) {
+    .dais-login__container {
+        flex-direction: column;
+        max-height: none;
+        min-height: auto;
+        border-radius: 0;
+        margin: 0;
+        box-shadow: none;
+    }
+    .dais-login__brand {
+        padding: 32px 24px 20px;
+    }
+    .dais-login__brand::before,
+    .dais-login__brand::after {
+        display: none;
+    }
+    .dais-login__logo-uac {
+        width: 68px;
+    }
+    .dais-login__logo-epis {
+        width: 56px;
+    }
+    .dais-login__title {
+        font-size: 2rem;
+        letter-spacing: 7px;
+    }
+    .dais-login__subtitle {
+        font-size: 0.7rem;
+    }
+    .dais-login__uni-prefix {
+        font-size: 0.6rem;
+    }
+    .dais-login__uni-name {
+        font-size: 1.15rem;
+    }
+    .dais-login__dept span {
+        font-size: 0.65rem;
+    }
+    .dais-login__dept strong {
+        font-size: 0.72rem;
+    }
+    .dais-login__divider {
+        margin: 16px auto;
+    }
+    .dais-login__brand-footer {
+        position: relative;
+        bottom: auto;
+        margin-top: 10px;
+    }
+    .dais-login__panel {
+        width: 100%;
+        min-width: 0;
+        padding: 28px 20px 32px;
+    }
+    .dais-login__card {
+        padding: 28px 24px 24px;
+        border-radius: 14px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+    .dais-login__brand {
+        padding: 24px 18px 16px;
+    }
+    .dais-login__logo-uac {
+        width: 56px;
+    }
+    .dais-login__logo-epis {
+        width: 46px;
+    }
+    .dais-login__title {
+        font-size: 1.7rem;
+        letter-spacing: 6px;
+    }
+    .dais-login__uni-name {
+        font-size: 1rem;
+    }
+    .dais-login__panel {
+        padding: 20px 16px 28px;
+    }
+    .dais-login__card {
+        padding: 24px 18px 22px;
+        border-radius: 12px;
+    }
+    .dais-login__card-head h2 {
+        font-size: 1.05rem;
+    }
+    .dais-login__input {
+        padding: 11px 38px 11px 38px;
+        font-size: 0.84rem;
+        border-radius: 10px;
+    }
+    .dais-login__btn {
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-size: 0.84rem;
+    }
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5); display: flex; align-items: center;
+    justify-content: center; z-index: 1000;
+}
+.modal-card {
+    background: #fff; border-radius: var(--radius-lg);
+    box-shadow: 0 25px 60px rgba(0,0,0,0.3); width: 100%; max-width: 400px; overflow: hidden;
+}
+.modal-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.modal-header h3 { font-size: 1rem; font-weight: 600; color: var(--primary); }
+.modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-light); }
+.modal-close:hover { color: var(--danger); }
+.modal-body { padding: 20px; }
+.modal-footer {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 12px 20px; border-top: 1px solid var(--border);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .sidebar { width: 100%; position: relative; }
+    .content { margin-left: 0; }
+    .layout { flex-direction: column; }
+    .top-header { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+    .top-header-right { gap: 10px; }
+    .content-body { padding: 14px; }
+    .header-user-name { display: none; }
+    .semester-trigger { padding: 5px 10px; font-size: 0.8rem; }
+    .semester-dropdown { width: 240px; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ================================================================
+   DASHBOARD — Panel administrativo profesional
+   ================================================================ */
+.db-page { display: flex; flex-direction: column; gap: 18px; }
+
+/* ---- Encabezado ---- */
+.db-hero {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: linear-gradient(135deg, #FFFFFF 0%, #F8FBFE 100%);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 20px; box-shadow: var(--shadow);
+}
+.db-hero__brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.db-hero__mark {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: #fff; font-weight: 800; letter-spacing: 1.5px;
+    border-radius: 10px; padding: 12px 14px; font-size: 1rem;
+    line-height: 1; box-shadow: 0 4px 12px rgba(26,54,93,0.25); flex: none;
+}
+.db-hero__title { font-size: 1.02rem; font-weight: 700; color: var(--primary); margin: 0; }
+.db-hero__sub { font-size: 0.73rem; color: var(--text-light); margin: 2px 0 0; }
+.db-hero__right { display: flex; align-items: center; gap: 12px; flex: none; }
+.db-sem {
+    display: flex; flex-direction: column; align-items: flex-end;
+    background: var(--primary); color: #fff;
+    border-radius: 10px; padding: 7px 16px; line-height: 1.3;
+}
+.db-sem__label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.72; }
+.db-sem__value { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.5px; }
+
+/* ---- KPIs ---- */
+.db-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+.db-kpi {
+    display: flex; align-items: center; gap: 11px;
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 13px;
+    box-shadow: var(--shadow); min-width: 0;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.db-kpi:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(26,54,93,0.10); }
+.db-kpi__icon {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; flex: none;
+}
+.db-kpi__icon svg { width: 19px; height: 19px; }
+.ic-navy  { background: #EBF0F7; color: var(--primary); }
+.ic-blue  { background: #EBF8FF; color: #2B6CB0; }
+.ic-green { background: #F0FFF4; color: #38A169; }
+.ic-teal  { background: #E6FFFA; color: #2C7A7B; }
+.ic-amber { background: #FFFFF0; color: #B7791F; }
+.ic-gold  { background: #FFFAF0; color: #C05621; }
+.db-kpi__meta { min-width: 0; }
+.db-kpi__value {
+    font-size: 1.35rem; font-weight: 800; color: var(--primary);
+    line-height: 1.05; white-space: nowrap;
+}
+.db-kpi__value--sm { font-size: 1.05rem; }
+.db-kpi__label {
+    font-size: 0.65rem; color: var(--text-light);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---- Grids ---- */
+.db-grid-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.db-grid-main { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 18px; align-items: start; }
+.db-stack { display: flex; flex-direction: column; gap: 18px; }
+
+/* ---- Tarjetas ---- */
+.db-card {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow); overflow: hidden;
+}
+.db-card__head {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #FFFFFF 0%, #FBFCFE 100%);
+}
+.db-card__title {
+    font-size: 0.85rem; font-weight: 700; color: var(--primary); margin: 0;
+    display: flex; align-items: center; gap: 9px;
+}
+.db-card__title::before {
+    content: ''; width: 3px; height: 14px; border-radius: 2px;
+    background: linear-gradient(180deg, var(--primary-light), var(--accent));
+}
+.db-card__tag {
+    font-size: 0.68rem; color: var(--text-light);
+    background: var(--bg); border: 1px solid var(--border);
+    padding: 2px 9px; border-radius: 20px; white-space: nowrap;
+}
+.db-card__body { padding: 15px 18px; }
+
+/* ---- Gráficos con altura controlada ---- */
+.db-chart { position: relative; height: 218px; }
+.db-chart--donut { height: 232px; }
+.db-chart--small { height: 170px; }
+
+.db-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.db-chip {
+    font-size: 0.72rem; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text-light); border-radius: 8px; padding: 4px 10px;
+}
+.db-chip strong { color: var(--primary); margin-left: 4px; }
+.db-chip--final { background: #EBF0F7; border-color: #CBD8EA; color: var(--primary); }
+
+/* ---- Enlace "ver completo" ---- */
+.db-link {
+    font-size: 0.74rem; font-weight: 600; color: var(--accent);
+    text-decoration: none; white-space: nowrap;
+}
+.db-link:hover { text-decoration: underline; }
+
+/* ---- Estado de evaluaciones ---- */
+.db-state { display: flex; flex-direction: column; gap: 11px; }
+.db-state__row { display: grid; grid-template-columns: 76px 1fr 30px; align-items: center; gap: 10px; }
+.db-state__label { font-size: 0.74rem; color: var(--text-light); font-weight: 500; }
+.db-state__num { font-size: 0.82rem; font-weight: 700; color: var(--primary); text-align: right; }
+.db-bar { height: 8px; border-radius: 6px; background: #EDF2F7; overflow: hidden; }
+.db-bar__fill { display: block; height: 100%; border-radius: 6px; min-width: 2px; transition: width 0.4s ease; }
+.db-bar__fill--ok   { background: linear-gradient(90deg, #48BB78, #38A169); }
+.db-bar__fill--warn { background: linear-gradient(90deg, #ECC94B, #D69E2E); }
+.db-bar__fill--bad  { background: linear-gradient(90deg, #FC8181, #E53E3E); }
+
+/* ---- Tablas compactas del dashboard ---- */
+.db-scroll { max-height: 236px; overflow-y: auto; }
+.db-table th { padding: 8px 14px; font-size: 0.67rem; background: #FAFCFF; }
+.db-table td { padding: 7px 14px; font-size: 0.82rem; }
+.db-table td.num, .db-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.db-docente { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-muted { color: var(--text-light); font-size: 0.76rem; }
+.db-medal { font-size: 1rem; line-height: 1; display: inline-block; }
+.db-rank-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 25px; height: 25px; border-radius: 8px;
+    background: var(--bg); border: 1px solid var(--border);
+    font-weight: 700; font-size: 0.74rem; color: var(--text-light);
+}
+
+/* ---- Estado vacío ---- */
+.db-empty { max-width: 520px; margin: 60px auto 0; }
+
+/* ---- Responsive dashboard ---- */
+@media (max-width: 1500px) {
+    .db-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1200px) {
+    .db-grid-charts, .db-grid-main { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+    .db-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .db-hero { flex-direction: column; align-items: flex-start; }
+    .db-sem { align-items: flex-start; }
+}
+@media (max-width: 420px) {
+    .db-kpis { grid-template-columns: 1fr; }
+}
+
+/* ================================================================
+   MODULO DOCUMENTOS - Generacion de fichas de evaluacion
+   ================================================================ */
+.doc-page { display: flex; flex-direction: column; gap: 16px; }
+
+.doc-hero {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: linear-gradient(135deg, #FFFFFF 0%, #F8FBFE 100%);
+    border: 1px solid var(--border); border-radius: 14px;
+    padding: 15px 20px; box-shadow: var(--shadow);
+}
+.doc-hero__text h1 { font-size: 1.05rem; font-weight: 700; color: var(--primary); margin: 0; }
+.doc-hero__text p { font-size: 0.75rem; color: var(--text-light); margin: 3px 0 0; }
+.doc-hero__h1 { font-size: 1.05rem; font-weight: 700; color: var(--primary); margin: 0; }
+.doc-hero__p { font-size: 0.75rem; color: var(--text-light); margin: 3px 0 0; }
+.doc-sem {
+    display: flex; flex-direction: column; align-items: flex-end;
+    background: var(--primary); color: #fff;
+    border-radius: 10px; padding: 7px 16px; line-height: 1.3; flex: none;
+}
+.doc-sem__label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 1.2px; opacity: 0.72; }
+.doc-sem__value { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.5px; }
+
+/* Resumen */
+.doc-resumen { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.doc-mini {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 16px; box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
+}
+.doc-mini__value { font-size: 1.35rem; font-weight: 800; color: var(--primary); line-height: 1.1; }
+.doc-mini__value--ok { color: var(--success); }
+.doc-mini__value--warn { color: var(--warning); }
+.doc-mini__label { font-size: 0.66rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+/* Toolbar */
+.doc-toolbar { display: flex; gap: 10px; align-items: center; }
+.doc-search {
+    flex: 1; max-width: 360px; display: flex; align-items: center; gap: 8px;
+    background: #fff; border: 1px solid var(--border); border-radius: 10px;
+    padding: 8px 12px; transition: border-color 0.2s;
+}
+.doc-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(49,130,206,0.08); }
+.doc-search svg { width: 15px; height: 15px; color: var(--text-light); flex: none; }
+.doc-search input { border: none; outline: none; width: 100%; font-size: 0.85rem; font-family: inherit; color: var(--text); background: transparent; }
+.doc-filtro {
+    border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px;
+    font-size: 0.84rem; font-family: inherit; color: var(--text); background: #fff;
+    cursor: pointer; outline: none;
+}
+
+/* Tabla */
+.doc-table td { vertical-align: middle; }
+.doc-nombre { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.doc-btn-preview { border-color: #CBD8EA; color: var(--accent); }
+
+.doc-estado { font-size: 0.74rem; font-weight: 600; color: var(--text-light); white-space: nowrap; }
+.doc-estado--ok { color: var(--success); }
+
+.doc-tabla-footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 11px 18px; border-top: 1px solid var(--border); background: #FBFCFE; flex-wrap: wrap;
+}
+.doc-botones { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.doc-archivo { font-family: Consolas, monospace; font-size: 0.76rem; color: var(--text); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Modal vista previa */
+.doc-modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(11, 31, 58, 0.55); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.doc-modal {
+    background: #F2F4F7; border-radius: 14px; width: 100%; max-width: 860px;
+    max-height: 92vh; display: flex; flex-direction: column;
+    box-shadow: 0 25px 70px rgba(0,0,0,0.35); overflow: hidden;
+    animation: docModalIn 0.25s ease-out;
+}
+@keyframes docModalIn { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+.doc-modal__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 18px; background: var(--primary); color: #fff;
+}
+.doc-modal__title { font-size: 0.9rem; font-weight: 600; letter-spacing: 0.3px; }
+.doc-modal__close { background: none; border: none; color: rgba(255,255,255,0.7); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+.doc-modal__close:hover { color: #fff; }
+.doc-modal__body { overflow-y: auto; padding: 22px; background: #E8ECF1; flex: 1; }
+.doc-modal__foot {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 18px; background: #fff; border-top: 1px solid var(--border);
+}
+
+/* Ficha (representacion del documento Word) */
+.ficha {
+    background: #fff; width: 100%; max-width: 720px; margin: 0 auto;
+    padding: 34px 40px; box-shadow: 0 4px 22px rgba(0,0,0,0.12);
+    border-radius: 4px; font-family: 'Times New Roman', Georgia, serif; color: #111;
+}
+.ficha__cab {
+    display: flex; align-items: center; justify-content: center; gap: 18px;
+    border-bottom: 2.5px double #1A365D; padding-bottom: 14px; margin-bottom: 18px;
+}
+.ficha__logo { height: 64px; width: auto; object-fit: contain; }
+.ficha__logo--epis { height: 56px; }
+.ficha__cab-centro { text-align: center; }
+.ficha__uni { font-size: 0.95rem; font-weight: 700; letter-spacing: 1px; margin: 0; text-transform: uppercase; }
+.ficha__esc { font-size: 0.78rem; margin: 2px 0 6px; color: #333; }
+.ficha__titulo { font-size: 1rem; font-weight: 700; margin: 0; letter-spacing: 0.5px; text-transform: uppercase; color: #1A365D; }
+.ficha__sem { font-size: 0.8rem; margin: 5px 0 0; color: #444; }
+
+.ficha__seccion { margin-bottom: 16px; }
+.ficha__subtitulo {
+    font-size: 0.85rem; font-weight: 700; color: #1A365D;
+    border-bottom: 1px solid #C9D4E3; padding-bottom: 3px; margin: 0 0 8px;
+    text-transform: uppercase; letter-spacing: 0.4px;
+}
+.ficha__tabla { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.ficha__tabla td { border: 1px solid #B9C4D2; padding: 5px 10px; }
+.ficha__etq { background: #EEF2F7; font-weight: 700; width: 150px; color: #1A365D; }
+.ficha__tabla--notas th {
+    background: #1A365D; color: #fff; padding: 5px 10px; text-align: left;
+    font-size: 0.78rem; border: 1px solid #1A365D;
+}
+.ficha__tabla--notas td.num, .ficha__tabla .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ficha__fila-final td { background: #EEF2F7; font-weight: 700; }
+.ficha__texto { font-size: 0.84rem; color: #333; margin: 0; font-style: italic; }
+.ficha__pie {
+    margin-top: 20px; padding-top: 10px; border-top: 1px solid #D5DCE5;
+    text-align: center; font-size: 0.68rem; color: #8894A4;
+}
+
+@media (max-width: 900px) {
+    .doc-modal { max-height: 94vh; }
+    .ficha { padding: 24px 20px; }
+    .ficha__cab { flex-direction: column; gap: 8px; }
+}
+@media (max-width: 768px) {
+    .doc-resumen { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .doc-toolbar { flex-wrap: wrap; }
+    .doc-hero { flex-direction: column; align-items: flex-start; }
+    .doc-sem { align-items: flex-start; }
+}

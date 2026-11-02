@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Mis capacitaciones{% endblock %}
+{% block page_title %}Mis capacitaciones{% endblock %}
+{% block content %}
+{% call m.page_head('Mis capacitaciones', 'Registre cursos, talleres, diplomados y demas formacion continua, con su certificado. El DAIS valida cada registro antes de incluirlo en su ficha.') %}
+    <button class="btn btn-primary" data-dialog="dlgCap" data-title="Nueva capacitacion" data-action="{{ url_for('docente.guardar_capacitacion') }}"
+            data-fill-nombre="" data-fill-anio="{{ anio_actual }}" data-fill-horas="" data-fill-institucion="" data-fill-tipo="Curso" data-fill-fecha-inicio="" data-fill-fecha-fin="">{{ m.icon('plus') }} Nueva capacitacion</button>
+{% endcall %}
+
+<div class="grid grid-main">
+    <div>
+        <div class="pills">
+            <a class="pill {{ 'active' if not anio }}" href="{{ url_for('docente.capacitaciones') }}">Todos los anios</a>
+            {% for a in resumen %}<a class="pill {{ 'active' if anio == a }}" href="{{ url_for('docente.capacitaciones', anio=a) }}">{{ a }} <span class="n">{{ resumen[a].cantidad }}</span></a>{% endfor %}
+        </div>
+        {% for a, items in por_anio.items() %}
+        <div class="year-block">
+            <div class="year-title">{{ m.icon('calendar', 'width="17" height="17"') }} {{ a }} <span class="badge badge-outline">{{ items|length }} · {{ resumen[a].horas|nota(0) }} h</span><span class="line"></span></div>
+            {% for c in items %}
+            <div class="item-card">
+                <div class="avatar">{{ m.icon('award', 'width="16" height="16"') }}</div>
+                <div class="body">
+                    <div class="title">{{ c.nombre }}</div>
+                    <div class="meta">
+                        {% if c.tipo %}<span>{{ c.tipo }}</span>{% endif %}
+                        {% if c.institucion %}<span>{{ c.institucion }}</span>{% endif %}
+                        {% if c.horas %}<span>{{ c.horas|nota(0) }} horas</span>{% endif %}
+                        {% if c.fecha_inicio %}<span>{{ c.fecha_inicio|fecha }}{% if c.fecha_fin %} – {{ c.fecha_fin|fecha }}{% endif %}</span>{% endif %}
+                        {{ m.estado(c.estado_validacion, c.estado_nombre) }}
+                        {% if c.origen == 'excel' %}<span class="badge badge-outline">Registrado por el DAIS</span>{% endif %}
+                    </div>
+                    {% if c.observacion_validacion and c.estado_validacion == 'observado' %}<div class="obs">Observacion del DAIS: {{ c.observacion_validacion }}</div>{% endif %}
+                </div>
+                <div class="table-actions">
+                    {% if c.archivo_ruta %}<a class="btn btn-xs" href="{{ url_for('archivos.descargar', tipo='capacitacion', item_id=c.id) }}" title="Certificado">{{ m.icon('clip') }}</a>{% endif %}
+                    {% if not (c.origen == 'excel' and c.estado_validacion == 'validado') %}
+                    <button class="btn btn-xs" title="Editar" data-dialog="dlgCap" data-title="Editar capacitacion" data-action="{{ url_for('docente.guardar_capacitacion', item_id=c.id) }}"
+                        data-fill-nombre="{{ c.nombre }}" data-fill-anio="{{ c.anio }}" data-fill-horas="{{ c.horas if c.horas is not none else '' }}" data-fill-institucion="{{ c.institucion or '' }}"
+                        data-fill-tipo="{{ c.tipo or '' }}" data-fill-fecha-inicio="{{ c.fecha_inicio.isoformat() if c.fecha_inicio else '' }}" data-fill-fecha-fin="{{ c.fecha_fin.isoformat() if c.fecha_fin else '' }}">{{ m.icon('edit') }}</button>
+                    {% endif %}
+                    {% if c.estado_validacion != 'validado' %}
+                    <form method="post" action="{{ url_for('docente.eliminar_capacitacion', item_id=c.id) }}" data-confirm="¿Eliminar esta capacitacion?">{{ m.csrf() }}<button class="btn btn-xs btn-danger" title="Eliminar">{{ m.icon('trash') }}</button></form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="db-card">{{ m.empty('Aun no registra capacitaciones', 'Use el boton "Nueva capacitacion" para agregar la primera.', 'award') }}</div>
+        {% endfor %}
+    </div>
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">Resumen por anio</h3></div>
+        <div class="db-card__body">
+            {% if resumen %}
+            <div style="height:220px;"><canvas id="chartAnios"></canvas></div>
+            <table class="mt"><thead><tr><th>Anio</th><th class="num">Cantidad</th><th class="num">Horas</th></tr></thead><tbody>
+                {% for a, r in resumen.items() %}<tr><td class="strong">{{ a }}</td><td class="num">{{ r.cantidad }}</td><td class="num">{{ r.horas|nota(0) }}</td></tr>{% endfor %}
+            </tbody></table>
+            {% else %}<p class="muted small">Sin datos.</p>{% endif %}
+        </div>
+    </div>
+</div>
+
+<dialog class="dlg" id="dlgCap">
+    <form method="post" enctype="multipart/form-data">
+        {{ m.csrf() }}
+        <div class="dlg-head"><h3>Capacitacion</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+        <div class="dlg-body form-grid">
+            <div class="form-group full"><label class="required">Nombre de la capacitacion</label><input name="nombre" class="form-control" required maxlength="400"></div>
+            <div class="form-group"><label>Tipo</label><select name="tipo" class="form-control">{% for t in tipos %}<option>{{ t }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Institucion</label><input name="institucion" class="form-control"></div>
+            <div class="form-group"><label class="required">Anio</label><input name="anio" type="number" min="1950" max="{{ anio_actual + 1 }}" class="form-control" required></div>
+            <div class="form-group"><label>Horas</label><input name="horas" type="number" min="0" step="0.5" class="form-control"></div>
+            <div class="form-group"><label>Fecha de inicio</label><input name="fecha_inicio" type="date" class="form-control"></div>
+            <div class="form-group"><label>Fecha de fin</label><input name="fecha_fin" type="date" class="form-control"></div>
+            <div class="form-group full"><label>Certificado (PDF o imagen)</label><input name="archivo" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="form-control">
+                <div class="form-hint">Maximo 15 MB. Al editar, si no adjunta un archivo se conserva el anterior.</div></div>
+        </div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">Guardar</button></div>
+    </form>
+</dialog>
+{% endblock %}
+{% block scripts %}
+{% if resumen %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+new Chart(document.getElementById('chartAnios'), {
+    type: 'bar',
+    data: { labels: {{ resumen.keys()|list|reverse|list|tojson }}, datasets: [{ label: 'Horas', data: {{ resumen.values()|map(attribute='horas')|list|reverse|list|tojson }}, backgroundColor: '#1F4E8C', borderRadius: 6, maxBarThickness: 36 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
+});
+</script>
+{% endif %}
+{% endblock %}

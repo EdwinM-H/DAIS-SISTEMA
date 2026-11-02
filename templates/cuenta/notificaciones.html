@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Notificaciones{% endblock %}
+{% block page_title %}Notificaciones{% endblock %}
+{% block content %}
+{% call m.page_head('Notificaciones', 'Avisos sobre su evaluacion, sus registros y las tesis en las que participa.') %}
+    {% if notificaciones|selectattr('leida', 'equalto', false)|list %}
+    <form method="post" action="{{ url_for('auth.marcar_leidas') }}">{{ m.csrf() }}<button class="btn">Marcar todas como leidas</button></form>
+    {% endif %}
+{% endcall %}
+<div class="db-card">
+    {% for n in notificaciones %}
+    <a class="notif {{ 'unread' if not n.leida }}" href="{{ url_for('auth.abrir_notificacion', notif_id=n.id) }}">
+        <div class="avatar">{{ m.icon('bell', 'width="16" height="16"') }}</div>
+        <div>
+            <div class="notif-title">{{ n.titulo }}</div>
+            {% if n.mensaje %}<div class="notif-msg">{{ n.mensaje }}</div>{% endif %}
+            <div class="notif-msg">{{ n.creado_en|fecha(true) }}</div>
+        </div>
+    </a>
+    {% else %}
+    {{ m.empty('Sin notificaciones', 'Aqui aparecera cualquier novedad.', 'bell') }}
+    {% endfor %}
+</div>
+{% endblock %}

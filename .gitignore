@@ -1,0 +1,54 @@
+# Entorno virtual
+venv/
+ENV/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+
+# Base de datos
+instance/
+*.db
+*.sqlite3
+
+# Variables de entorno
+.env
+
+# Archivos subidos
+uploads/
+
+# Documentos generados
+generated/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Archivos subidos por docentes y estudiantes
+storage/
+
+# Datos reales de docentes (notas): no se publican en el repositorio
+data/*.xlsx

@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+{% block title %}Documentos{% endblock %}
+{% block page_title %}Documentos{% endblock %}
+{% block content %}
+
+{% if not semestre_actual %}
+<div class="card" style="text-align:center;padding:40px;">
+    <p style="color:var(--text-light);">Seleccione un semestre primero.</p>
+</div>
+{% else %}
+
+<div class="doc-page">
+
+    <!-- ENCABEZADO DEL MODULO -->
+    <header class="doc-hero">
+        <div class="doc-hero__text">
+            <h1>Generaci&oacute;n de fichas de evaluaci&oacute;n</h1>
+            <p>Gesti&oacute;n y generaci&oacute;n de fichas docentes del semestre actual</p>
+        </div>
+        <div class="doc-sem">
+            <span class="doc-sem__label">Semestre actual</span>
+            <span class="doc-sem__value">{{ semestre_actual.codigo }}</span>
+        </div>
+    </header>
+
+    {% if not plantilla_ok %}
+    <div class="alert alert-warning" style="margin-top:14px;">
+        La plantilla oficial <strong>FICHA DE EVALUACI&Oacute;N INTEGRAL DOCENTES-DAIS.docx</strong> no se encuentra en la carpeta <code>data/</code>. No ser&aacute; posible generar fichas hasta restaurarla.
+    </div>
+    {% endif %}
+
+    <!-- RESUMEN -->
+    <section class="doc-resumen">
+        <div class="doc-mini">
+            <span class="doc-mini__value">{{ resumen.total }}</span>
+            <span class="doc-mini__label">Total docentes</span>
+        </div>
+        <div class="doc-mini">
+            <span class="doc-mini__value doc-mini__value--ok">{{ resumen.generadas }}</span>
+            <span class="doc-mini__label">Fichas generadas</span>
+        </div>
+        <div class="doc-mini">
+            <span class="doc-mini__value doc-mini__value--warn">{{ resumen.pendientes }}</span>
+            <span class="doc-mini__label">Pendientes</span>
+        </div>
+        <div class="doc-mini">
+            <span class="doc-mini__value" id="docSelCount">0</span>
+            <span class="doc-mini__label">Seleccionados</span>
+        </div>
+    </section>
+
+    {% if docentes_lista %}
+
+    <!-- BUSCADOR + FILTRO -->
+    <section class="doc-toolbar">
+        <div class="doc-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="docBuscar" placeholder="Buscar docente..." autocomplete="off">
+        </div>
+        <select id="docFiltro" class="doc-filtro">
+            <option value="">Todos</option>
+            <option value="Excelente">Excelente</option>
+            <option value="Muy Bueno">Muy Bueno</option>
+            <option value="Bueno">Bueno</option>
+            <option value="Regular">Regular</option>
+        </select>
+    </section>
+
+    <!-- TABLA DE DOCENTES -->
+    <form method="POST" action="{{ url_for('documentos.generar_multiple') }}" id="docFormMultiple" data-no-lock>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <section class="db-card">
+            <div class="db-card__head">
+                <h2 class="db-card__title">Docentes del semestre</h2>
+                <span class="db-card__tag">{{ resumen.con_datos }} con evaluaci&oacute;n completa</span>
+            </div>
+            <div class="table-container">
+                <table class="db-table doc-table" id="docTabla">
+                    <thead>
+                        <tr>
+                            <th style="width:36px;"><input type="checkbox" id="docSelTodos" title="Seleccionar todos"></th>
+                            <th>C&oacute;digo</th>
+                            <th>Docente</th>
+                            <th style="width:105px;">Modalidad</th>
+                            <th class="num" style="width:90px;">Promedio</th>
+                            <th style="width:115px;">Clasificaci&oacute;n</th>
+                            <th class="num" style="width:80px;">Posici&oacute;n</th>
+                            <th style="width:110px;">Estado</th>
+                            <th style="width:190px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in docentes_lista %}
+                        <tr data-clasif="{{ item.clasificacion or '' }}" data-nombre="{{ item.docente.nombre_completo|lower }} {{ item.docente.codigo|lower }}">
+                            <td>
+                                {% if item.con_datos %}
+                                <input type="checkbox" name="docentes_ids" value="{{ item.docente.id }}" class="doc-check">
+                                {% else %}
+                                <input type="checkbox" disabled title="Sin datos completos">
+                                {% endif %}
+                            </td>
+                            <td class="db-muted">{{ item.docente.codigo }}</td>
+                            <td class="doc-nombre">{{ item.docente.nombre_completo }}</td>
+                            <td class="db-muted">{{ item.modalidad or '-' }}</td>
+                            <td class="num"><strong>{% if item.promedio_final %}{{ '%.2f'|format(item.promedio_final) }}{% else %}-{% endif %}</strong></td>
+                            <td>
+                                {% if item.clasificacion %}
+                                <span class="badge {{ 'badge-success' if item.clasificacion == 'Excelente' else ('badge-info' if item.clasificacion == 'Muy Bueno' else ('badge-warning' if item.clasificacion == 'Bueno' else ('badge-secondary' if item.clasificacion == 'Regular' else 'badge-danger'))) }}">{{ item.clasificacion }}</span>
+                                {% else %}<span class="db-muted">-</span>{% endif %}
+                            </td>
+                            <td class="num">{% if item.posicion %}<span class="db-rank-num">{{ item.posicion }}</span>{% else %}<span class="db-muted">-</span>{% endif %}</td>
+                            <td>
+                                {% if item.generada %}
+                                <span class="doc-estado doc-estado--ok">&#10003; Generada</span>
+                                {% else %}
+                                <span class="doc-estado">&#9675; Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="doc-actions">
+                                    {% if item.con_datos %}
+                                    <button type="button" class="btn btn-sm doc-btn-preview" data-id="{{ item.docente.id }}" data-nombre="{{ item.docente.nombre_completo }}">Vista previa</button>
+                                    {% if plantilla_ok %}
+                                    <a class="btn btn-sm btn-primary" href="{{ url_for('documentos.generar_individual', docente_id=item.docente.id, semestre_id=semestre_actual.id) }}">Generar ficha</a>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="db-muted" title="No hay datos de evaluacion completos">Sin datos</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="doc-tabla-footer">
+                <span class="db-muted" id="docResumenSel">0 seleccionados</span>
+                <div class="doc-botones">
+                    <button type="button" class="btn" id="docBtnPreviewMultiple" disabled>Vista previa (1 docente)</button>
+                    <button type="submit" class="btn btn-primary" id="docBtnMultiple" disabled>Generar fichas seleccionadas</button>
+                    {% if plantilla_ok %}
+                    <button type="button" class="btn" id="docBtnZipSemestre" {% if resumen.con_datos == 0 %}disabled{% endif %}>Descargar ZIP del semestre</button>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    </form>
+
+    <!-- HISTORIAL POR SEMESTRE -->
+    <section class="db-card" style="margin-top:18px;">
+        <div class="db-card__head">
+            <h2 class="db-card__title">Historial de fichas &mdash; {{ semestre_actual.codigo }}</h2>
+            <a href="{{ url_for('documentos.historial') }}" class="db-link">Ver completo &rarr;</a>
+        </div>
+        <div class="table-container">
+            <table class="db-table">
+                <thead>
+                    <tr>
+                        <th>Semestre</th>
+                        <th>Docente</th>
+                        <th style="width:150px;">Fecha</th>
+                        <th>Documento</th>
+                        <th style="width:95px;">Estado</th>
+                        <th style="width:110px;">Acci&oacute;n</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in historial %}
+                    <tr>
+                        <td class="db-muted">{{ r.semestre.codigo }}</td>
+                        <td>{{ r.docente.nombre_completo if r.docente else '-' }}</td>
+                        <td class="db-muted">{{ r.fecha_generacion.strftime('%d/%m/%Y %H:%M') if r.fecha_generacion else '-' }}</td>
+                        <td class="doc-archivo">{{ r.nombre_archivo }}</td>
+                        <td><span class="doc-estado doc-estado--ok">&#10003; Lista</span></td>
+                        <td><a class="btn btn-sm" href="{{ url_for('documentos.download', documento_id=r.id) }}">Descargar</a></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" style="text-align:center;color:var(--text-light);">A&uacute;n no se han generado fichas en este semestre.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {% else %}
+    <section class="db-card" style="margin-top:18px;">
+        <div class="db-card__body" style="text-align:center;padding:48px 24px;">
+            <p style="font-weight:600;color:var(--primary);">No hay docentes registrados en el semestre {{ semestre_actual.codigo }}.</p>
+            <p style="margin-top:6px;color:var(--text-light);font-size:.88rem;">Importe la ficha de evaluaci&oacute;n desde el m&oacute;dulo Importar para habilitar la generaci&oacute;n.</p>
+        </div>
+    </section>
+    {% endif %}
+
+</div>
+
+<!-- MODAL VISTA PREVIA -->
+<div class="doc-modal-overlay" id="docModalOverlay" style="display:none;">
+    <div class="doc-modal">
+        <div class="doc-modal__head">
+            <span class="doc-modal__title">Vista previa &mdash; Ficha de Evaluaci&oacute;n Integral</span>
+            <button type="button" class="doc-modal__close" id="docModalClose">&times;</button>
+        </div>
+        <div class="doc-modal__body" id="docModalBody">
+            <p style="text-align:center;color:var(--text-light);padding:40px 0;">Cargando vista previa...</p>
+        </div>
+        <div class="doc-modal__foot">
+            <span class="db-muted" id="docModalNombre"></span>
+            <div style="display:flex;gap:8px;">
+                <button type="button" class="btn" id="docModalCerrar">Cerrar</button>
+                <a class="btn btn-primary" id="docModalGenerar" href="#">Generar DOCX</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if semestre_actual %}
+<script>
+(function() {
+    var checks = Array.prototype.slice.call(document.querySelectorAll('.doc-check'));
+    var selTodos = document.getElementById('docSelTodos');
+    var buscador = document.getElementById('docBuscar');
+    var filtro = document.getElementById('docFiltro');
+    var contador = document.getElementById('docSelCount');
+    var resumenSel = document.getElementById('docResumenSel');
+    var btnMultiple = document.getElementById('docBtnMultiple');
+    var btnPreviewMulti = document.getElementById('docBtnPreviewMultiple');
+
+    function refrescar() {
+        var n = checks.filter(function(c) { return c.checked; }).length;
+        if (contador) contador.textContent = n;
+        if (resumenSel) resumenSel.textContent = n + (n === 1 ? ' seleccionado' : ' seleccionados');
+        if (btnMultiple) btnMultiple.disabled = n === 0;
+        if (btnPreviewMulti) {
+            btnPreviewMulti.disabled = n !== 1;
+            btnPreviewMulti.textContent = n === 1 ? 'Vista previa' : 'Vista previa (1 docente)';
+        }
+        if (selTodos && checks.length) {
+            selTodos.checked = n === checks.length;
+            selTodos.indeterminate = n > 0 && n < checks.length;
+        }
+    }
+
+    function filtrar() {
+        var q = (buscador && buscador.value || '').toLowerCase().trim();
+        var f = (filtro && filtro.value || '');
+        var visibles = 0;
+        Array.prototype.forEach.call(document.querySelectorAll('#docTabla tbody tr'), function(tr) {
+            var okTexto = !q || tr.getAttribute('data-nombre').indexOf(q) !== -1;
+            var okClas = !f || tr.getAttribute('data-clasif') === f;
+            var mostrar = okTexto && okClas;
+            tr.style.display = mostrar ? '' : 'none';
+            if (mostrar) visibles++;
+        });
+    }
+
+    if (selTodos) selTodos.addEventListener('change', function() {
+        var marcar = selTodos.checked;
+        checks.forEach(function(c) {
+            var tr = c.closest('tr');
+            if (!marcar && tr && tr.style.display === 'none') return;
+            if (!c.disabled) c.checked = marcar;
+        });
+        refrescar();
+    });
+    checks.forEach(function(c) { c.addEventListener('change', refrescar); });
+    if (buscador) buscador.addEventListener('input', filtrar);
+    if (filtro) filtro.addEventListener('change', filtrar);
+
+    /* ---- Vista previa en modal ---- */
+    var overlay = document.getElementById('docModalOverlay');
+    var modalBody = document.getElementById('docModalBody');
+    var modalNombre = document.getElementById('docModalNombre');
+    var modalGenerar = document.getElementById('docModalGenerar');
+    var previewActualId = null;
+
+    function abrirModal(docenteId, nombre) {
+        previewActualId = docenteId;
+        if (modalNombre) modalNombre.textContent = nombre || '';
+        if (modalGenerar) modalGenerar.href = '/documentos/generar/' + docenteId + '/' + '{{ session.get("semestre_id") or 0 }}';
+        overlay.style.display = 'flex';
+        modalBody.innerHTML = '<p style="text-align:center;color:var(--text-light);padding:40px 0;">Cargando vista previa...</p>';
+        fetch('/documentos/preview/' + docenteId)
+            .then(function(r) { return r.text(); })
+            .then(function(html) { modalBody.innerHTML = html; })
+            .catch(function() {
+                modalBody.innerHTML = '<p style="text-align:center;color:var(--danger);padding:40px 0;">No se pudo cargar la vista previa.</p>';
+            });
+    }
+
+    function cerrarModal() { overlay.style.display = 'none'; }
+
+    document.querySelectorAll('.doc-btn-preview').forEach(function(btn) {
+        btn.addEventListener('click', function() { abrirModal(btn.getAttribute('data-id'), btn.getAttribute('data-nombre')); });
+    });
+    if (btnPreviewMulti) btnPreviewMulti.addEventListener('click', function() {
+        var sel = checks.filter(function(c) { return c.checked; });
+        if (sel.length === 1) {
+            var tr = sel[0].closest('tr');
+            var nombre = tr.querySelector('.doc-nombre').textContent.trim();
+            abrirModal(sel[0].value, nombre);
+        }
+    });
+
+    document.getElementById('docModalClose').addEventListener('click', cerrarModal);
+    document.getElementById('docModalCerrar').addEventListener('click', cerrarModal);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) cerrarModal(); });
+
+    /* ZIP del semestre completo */
+    var btnZip = document.getElementById('docBtnZipSemestre');
+    if (btnZip) btnZip.addEventListener('click', function() {
+        checks.forEach(function(c) { if (!c.disabled) c.checked = true; });
+        refrescar();
+        document.getElementById('docFormMultiple').submit();
+    });
+
+    refrescar();
+})();
+</script>
+{% endif %}
+{% endblock %}

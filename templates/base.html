@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+{% import "_macros.html" as m with context %}
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}DAIS{% endblock %} · DAIS</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/logo_uac.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+{% if current_user.is_authenticated and not hide_layout %}
+{% set ep = request.endpoint or '' %}
+{% macro nav(endpoint, texto, icono, activo=False, count=0) -%}
+<a href="{{ url_for(endpoint) if '?' not in endpoint else endpoint }}" class="{{ 'active' if activo }}">{{ m.icon(icono) }}<span>{{ texto }}</span>{% if count %}<span class="nav-count">{{ count }}</span>{% endif %}</a>
+{%- endmacro %}
+<div class="layout">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-brand-mark">UAC</div>
+            <div class="sidebar-brand-text"><strong>DAIS</strong><span>Gestion Docente &middot; EPIS</span></div>
+        </div>
+        <nav class="sidebar-nav">
+            {% if current_user.es_gestion %}
+                <div class="nav-section">Evaluacion</div>
+                {{ nav('dashboard.index', 'Dashboard', 'chart', ep == 'dashboard.index') }}
+                {{ nav('docentes.index', 'Docentes', 'users', ep.startswith('docentes.')) }}
+                {{ nav('ranking.index', 'Ranking', 'trophy', ep.startswith('ranking.')) }}
+                {{ nav('importacion.index', 'Importar datos', 'upload', ep.startswith('importacion.')) }}
+                {{ nav('documentos.index', 'Fichas Word', 'file', ep.startswith('documentos.')) }}
+                {{ nav('historial.index', 'Historial', 'history', ep.startswith('historial.')) }}
+                {{ nav('semestres.index', 'Semestres', 'calendar', ep.startswith('semestres.')) }}
+                <div class="nav-section">Produccion academica</div>
+                <a href="{{ url_for('produccion.index', tipo='capacitaciones') }}" class="{{ 'active' if ep.startswith('produccion.') and request.view_args.tipo == 'capacitaciones' }}">{{ m.icon('award') }}<span>Capacitaciones</span></a>
+                <a href="{{ url_for('produccion.index', tipo='investigaciones') }}" class="{{ 'active' if ep.startswith('produccion.') and request.view_args.tipo == 'investigaciones' }}">{{ m.icon('flask') }}<span>Investigaciones</span></a>
+                <div class="nav-section">Tesis</div>
+                {{ nav('tesis.index', 'Tesis', 'book', ep.startswith('tesis.') and ep != 'tesis.estudiantes') }}
+                {{ nav('tesis.estudiantes', 'Estudiantes', 'cap', ep == 'tesis.estudiantes') }}
+                {% if current_user.es_direccion %}
+                <div class="nav-section">Administracion</div>
+                {{ nav('usuarios.index', 'Usuarios y accesos', 'shield', ep.startswith('usuarios.')) }}
+                {% endif %}
+            {% elif current_user.es_docente %}
+                <div class="nav-section">Mi portal</div>
+                {{ nav('docente.inicio', 'Mi evaluacion', 'target', ep == 'docente.inicio') }}
+                {{ nav('docente.capacitaciones', 'Mis capacitaciones', 'award', ep == 'docente.capacitaciones') }}
+                {{ nav('docente.investigaciones', 'Publicaciones e investigaciones', 'flask', ep == 'docente.investigaciones') }}
+                {{ nav('docente.tesis', 'Mis tesis', 'book', ep.startswith('docente.tesis')) }}
+                {{ nav('docente.perfil', 'Mi perfil', 'user', ep == 'docente.perfil') }}
+            {% elif current_user.es_estudiante %}
+                <div class="nav-section">Mi portal</div>
+                {{ nav('estudiante.inicio', 'Mi tesis', 'book', ep.startswith('estudiante.')) }}
+            {% endif %}
+            <div class="nav-section">Cuenta</div>
+            {{ nav('auth.notificaciones', 'Notificaciones', 'bell', ep == 'auth.notificaciones', current_user.notificaciones_pendientes()) }}
+            {{ nav('auth.cambiar_password', 'Cambiar contrasena', 'key', ep == 'auth.cambiar_password') }}
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">{{ current_user.iniciales }}</div>
+                <div>
+                    <span class="user-name">{{ current_user.nombre_completo }}</span>
+                    <span class="user-role">{{ current_user.rol_nombre }}</span>
+                </div>
+            </div>
+            <a href="{{ url_for('auth.logout') }}" class="logout-btn">Cerrar sesion</a>
+        </div>
+    </aside>
+    <main class="content">
+        <header class="top-header">
+            <div class="top-header-left">
+                <button class="menu-toggle" type="button" id="menuToggle" aria-label="Abrir menu">{{ m.icon('menu') }}</button>
+                <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+            </div>
+            <div class="top-header-right">
+                {% if current_user.es_gestion %}
+                <div class="semester-selector" id="semesterSelector">
+                    <button class="semester-trigger" id="semesterTrigger" type="button">
+                        <span class="semester-label">Semestre:</span>
+                        <span class="semester-value" id="semesterValue">{{ session_semestre_codigo or 'Seleccionar' }}</span>
+                        <span class="semester-arrow">&#9660;</span>
+                    </button>
+                    <div class="semester-dropdown" id="semesterDropdown">
+                        <div class="semester-dropdown-title">Semestre de trabajo</div>
+                        <div class="semester-list" id="semesterList"></div>
+                        <div class="semester-dropdown-divider"></div>
+                        <button class="semester-create-btn" id="semesterCreateBtn" type="button">+ Crear nuevo semestre</button>
+                    </div>
+                </div>
+                {% endif %}
+                {% set pendientes = current_user.notificaciones_pendientes() %}
+                <a class="icon-btn" href="{{ url_for('auth.notificaciones') }}" title="Notificaciones">{{ m.icon('bell') }}{% if pendientes %}<span class="dot">{{ pendientes }}</span>{% endif %}</a>
+                <div class="header-user">
+                    <div class="user-avatar-sm">{{ current_user.iniciales }}</div>
+                    <span class="header-user-name">{{ current_user.nombre_completo }}</span>
+                </div>
+            </div>
+        </header>
+        <div class="content-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+</div>
+{% if current_user.es_gestion %}
+<div class="modal-overlay" id="modalOverlay" style="display:none;">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3>Crear nuevo semestre</h3>
+            <button class="modal-close" id="modalClose" type="button">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="modalAnio">Anio</label>
+                <input type="number" id="modalAnio" class="form-control" min="2020" max="2099" value="{{ anio_actual }}">
+            </div>
+            <div class="form-group">
+                <label for="modalPeriodo">Periodo</label>
+                <select id="modalPeriodo" class="form-control">
+                    <option value="I">I (Primer semestre)</option>
+                    <option value="II">II (Segundo semestre)</option>
+                </select>
+            </div>
+            <div id="modalError" class="alert alert-danger" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn" id="modalCancel" type="button">Cancelar</button>
+            <button class="btn btn-primary" id="modalSubmit" type="button">Crear</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% else %}
+<div class="auth-layout">
+    {% block auth_content %}{% endblock %}
+</div>
+{% endif %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

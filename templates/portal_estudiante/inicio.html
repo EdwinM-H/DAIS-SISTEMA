@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Mi tesis{% endblock %}
+{% block page_title %}Mi tesis{% endblock %}
+{% block content %}
+{{ m.page_head('Mis tesis', 'Seleccione una tesis para ver su avance.') }}
+<div class="db-card">
+    {% for t in tesis %}
+    <a class="notif" href="{{ url_for('estudiante.mi_tesis', tesis_id=t.id) }}">
+        <div class="avatar">{{ m.icon('book', 'width="16" height="16"') }}</div>
+        <div style="flex:1;"><div class="notif-title">{{ t.titulo }}</div><div class="notif-msg">{{ t.codigo }}</div></div>
+        {{ m.estado(t.estado, t.estado_nombre) }}
+    </a>
+    {% else %}
+    {{ m.empty('Aun no tiene una tesis registrada', 'Cuando la Direccion del DAIS registre su proyecto, podra seguir su avance aqui.', 'book') }}
+    {% endfor %}
+</div>
+{% endblock %}

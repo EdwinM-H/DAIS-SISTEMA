@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Importacion {{ imp.id }}{% endblock %}
+{% block page_title %}Importar datos{% endblock %}
+{% block content %}
+{{ m.page_head(imp.tipo_nombre, imp.nombre_archivo ~ ' · ' ~ (imp.fecha_importacion|fecha(true)), [('Importar', url_for('importacion.index')), ('Importacion #' ~ imp.id, None)]) }}
+<div class="kpis">
+    <div class="kpi"><span class="kpi-label">Semestre</span><span class="kpi-value">{{ imp.semestre.codigo }}</span></div>
+    <div class="kpi"><span class="kpi-label">Leidos</span><span class="kpi-value">{{ imp.registros_encontrados }}</span></div>
+    <div class="kpi kpi-green"><span class="kpi-label">Nuevos</span><span class="kpi-value">{{ imp.registros_importados }}</span></div>
+    <div class="kpi kpi-gold"><span class="kpi-label">Actualizados</span><span class="kpi-value">{{ imp.registros_actualizados }}</span></div>
+    <div class="kpi kpi-red"><span class="kpi-label">Rechazados</span><span class="kpi-value">{{ imp.registros_rechazados }}</span></div>
+</div>
+<div class="db-card">
+    <div class="db-card__head"><h3 class="db-card__title">Errores y advertencias</h3></div>
+    <div class="db-card__body small">
+        {% for e in imp.lista_errores %}<div class="alert alert-warning">{{ e }}</div>{% else %}<p class="muted">Sin incidencias.</p>{% endfor %}
+    </div>
+</div>
+{% endblock %}

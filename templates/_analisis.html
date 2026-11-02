@@ -1,0 +1,120 @@
+{# Requiere: analisis (services.evaluacion_service.analisis_docente) #}
+{% import "_macros.html" as m with context %}
+{% set ev = analisis.evaluacion %}
+{% set prom = analisis.promedios %}
+<div class="kpis">
+    <div class="kpi kpi-gold">
+        <span class="kpi-label">Puesto en el ranking</span>
+        <span class="kpi-value">{{ analisis.puesto or '-' }}<small> de {{ analisis.total }}</small></span>
+        <span class="kpi-sub">{% if analisis.percentil is not none %}Supera al {{ analisis.percentil }}% de la plana docente{% else %}&nbsp;{% endif %}</span>
+    </div>
+    <div class="kpi">
+        <span class="kpi-label">Promedio final</span>
+        <span class="kpi-value">{{ ev.promedio_final|nota }}<small> / 10</small></span>
+        <span class="kpi-sub">Promedio del semestre: {{ prom.promedio_final|nota }}</span>
+    </div>
+    <div class="kpi kpi-green">
+        <span class="kpi-label">Clasificacion</span>
+        <span class="kpi-value" style="font-size:1.3rem;">{{ ev.clasificacion or '-' }}</span>
+        <span class="kpi-sub">{% if analisis.siguiente_clasificacion %}Faltan {{ analisis.falta_siguiente|nota }} pts para "{{ analisis.siguiente_clasificacion }}"{% else %}Maxima clasificacion{% endif %}</span>
+    </div>
+    <div class="kpi kpi-purple">
+        <span class="kpi-label">Mayor oportunidad</span>
+        {% if analisis.mejoras %}
+        <span class="kpi-value" style="font-size:1.15rem;">{{ analisis.mejoras[0].etiqueta }}</span>
+        <span class="kpi-sub">Puede sumar hasta +{{ analisis.mejoras[0].impacto|nota(2) }} al promedio final</span>
+        {% else %}
+        <span class="kpi-value" style="font-size:1.15rem;">Ninguna</span>
+        <span class="kpi-sub">Puntaje maximo en todo</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">Resultados por dimension</h3><span class="db-card__tag">vs. promedio del semestre</span></div>
+        <div class="db-card__body">
+            <div style="height:240px;"><canvas id="chartDimensiones"></canvas></div>
+            <div class="mt">
+                {{ m.barra(ev.encuesta, 10, 'Encuesta estudiantil (40%)') }}
+                {{ m.barra(ev.normas, 10, 'Cumplimiento de normas (40%)') }}
+                {{ m.barra(ev.autoevaluacion, 10, 'Autoevaluacion (20%)') }}
+            </div>
+        </div>
+    </div>
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">Cumplimiento de normas</h3><span class="db-card__tag">Subtotal {{ analisis.criterios.subtotal_normas|nota if analisis.criterios else '-' }} / 100</span></div>
+        <div class="db-card__body">
+            {% if analisis.criterios %}
+                {% for campo, etiqueta, maximo in [('reuniones','Reuniones de junta',15),('silabos','Silabos y portafolio',20),('notas_config','Configuracion de notas',15),('horas_lectivas','Horas lectivas',20),('puntualidad','Puntualidad',10),('subida_notas_erp','Asistencia en ERP',10),('designacion_delegados','Delegados',10)] %}
+                    {{ m.barra(analisis.criterios[campo], maximo, etiqueta) }}
+                {% endfor %}
+            {% else %}
+                {{ m.empty('Sin detalle de criterios', 'Solo se registro la nota global de normas.', 'chart') }}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-main mt">
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('target', 'width="17" height="17"') }} Puntos a mejorar</h3><span class="db-card__tag">ordenados por impacto en el promedio</span></div>
+        <div class="db-card__body">
+            {% if analisis.distancia_puesto %}
+            <div class="callout mb">Para subir al siguiente puesto necesita <strong>+{{ analisis.distancia_puesto|nota(3) }}</strong> puntos en el promedio final.</div>
+            {% endif %}
+            {% for item in analisis.mejoras %}
+            <div class="improve {{ item.prioridad }}">
+                <h4>{{ item.etiqueta }} <span class="badge prio-{{ item.prioridad }}">Prioridad {{ item.prioridad }}</span></h4>
+                <p>{{ item.recomendacion }}</p>
+                <div class="facts">
+                    <span>Obtenido: <strong>{{ item.valor|nota }}</strong> / {{ item.maximo }}</span>
+                    {% if item.promedio is not none %}<span>Promedio docentes: <strong>{{ item.promedio|nota }}</strong></span>{% endif %}
+                    <span>Impacto posible: <strong>+{{ item.impacto|nota(3) }}</strong> en el promedio final</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="callout green">Obtuvo el puntaje maximo en todos los componentes. ¡Excelente desempeno!</div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('star', 'width="17" height="17"') }} Fortalezas</h3></div>
+        <div class="db-card__body">
+            {% for f in analisis.fortalezas %}
+            <div class="row" style="padding:7px 0;border-bottom:1px dashed var(--border);">
+                <span class="badge badge-success">{{ f.valor|nota }} / {{ f.maximo }}</span><span class="small strong">{{ f.etiqueta }}</span>
+            </div>
+            {% else %}
+            <p class="muted small">Aun no hay componentes con puntaje maximo.</p>
+            {% endfor %}
+            {% if ev.observaciones %}
+            <div class="callout gold mt"><strong>Observaciones del DAIS:</strong><br>{{ ev.observaciones }}</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var el = document.getElementById('chartDimensiones');
+    if (!el || typeof Chart === 'undefined') return;
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: ['Encuesta', 'Normas', 'Autoevaluacion', 'Promedio final'],
+            datasets: [
+                { label: 'Docente', data: {{ [ev.encuesta, ev.normas, ev.autoevaluacion, ev.promedio_final]|tojson }}, backgroundColor: '#1F4E8C', borderRadius: 6, maxBarThickness: 34 },
+                { label: 'Promedio semestre', data: {{ [prom.encuesta, prom.normas, prom.autoevaluacion, prom.promedio_final]|tojson }}, backgroundColor: '#C8A23A', borderRadius: 6, maxBarThickness: 34 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+                       tooltip: { callbacks: { label: function (c) { return ' ' + c.dataset.label + ': ' + Number(c.parsed.y).toFixed(2); } } } },
+            scales: { y: { beginAtZero: false, suggestedMin: 5, max: 10, grid: { color: '#EDF2F7' } }, x: { grid: { display: false } } }
+        }
+    });
+})();
+</script>

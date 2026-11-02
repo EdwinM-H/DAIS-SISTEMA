@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Usuarios{% endblock %}
+{% block page_title %}Usuarios y accesos{% endblock %}
+{% block content %}
+{% call m.page_head('Usuarios y accesos', 'Cuentas de gestion, docentes y estudiantes. Toda cuenta nueva o restablecida debe cambiar su contrasena al primer ingreso.') %}
+    {% if sin_cuenta %}
+    <form method="post" action="{{ url_for('usuarios.generar_docentes') }}" data-confirm="Se crearan {{ sin_cuenta }} cuentas de docentes con contrasenas temporales. ¿Continuar?">
+        {{ m.csrf() }}<button class="btn btn-gold">{{ m.icon('users') }} Crear cuentas para {{ sin_cuenta }} docentes</button>
+    </form>
+    {% endif %}
+    <a class="btn btn-primary" href="{{ url_for('usuarios.crear') }}">{{ m.icon('plus') }} Usuario de gestion</a>
+{% endcall %}
+
+<div class="pills">
+    <a class="pill {{ 'active' if not rol }}" href="{{ url_for('usuarios.index') }}">Todos</a>
+    {% for clave, nombre in roles.items() %}<a class="pill {{ 'active' if rol == clave }}" href="{{ url_for('usuarios.index', rol=clave) }}">{{ nombre }}</a>{% endfor %}
+</div>
+<div class="db-card">
+    <form class="filters" method="get">
+        <input type="hidden" name="rol" value="{{ rol }}">
+        <div class="form-group" style="flex:1;"><label>Buscar</label><input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Usuario o nombre"></div>
+        <button class="btn btn-primary">Buscar</button>
+    </form>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Vinculado a</th><th>Estado</th><th>Ultimo acceso</th><th></th></tr></thead>
+            <tbody>
+            {% for u in usuarios %}
+                <tr>
+                    <td><span class="cred-box">{{ u.username }}</span></td>
+                    <td class="cell-title">{{ u.nombre_completo }}{% if u.debe_cambiar_password %}<div class="cell-sub">Contrasena temporal pendiente de cambio</div>{% endif %}</td>
+                    <td><span class="badge badge-outline">{{ u.rol_nombre }}</span></td>
+                    <td class="small">
+                        {% if u.docente %}<a href="{{ url_for('docentes.detalle', docente_id=u.docente.id) }}">{{ u.docente.codigo }}</a>
+                        {% elif u.estudiante %}Estudiante {{ u.estudiante.codigo }}{% else %}<span class="muted">-</span>{% endif %}
+                    </td>
+                    <td>{% if u.activo %}<span class="badge badge-success">Activo</span>{% else %}<span class="badge badge-secondary">Desactivado</span>{% endif %}</td>
+                    <td class="muted small">{{ u.ultimo_acceso|fecha(true) }}</td>
+                    <td>
+                        <div class="table-actions">
+                            <form method="post" action="{{ url_for('usuarios.restablecer', usuario_id=u.id) }}" data-confirm="¿Generar una nueva contrasena temporal para {{ u.username }}?">{{ m.csrf() }}<button class="btn btn-xs">{{ m.icon('key') }} Restablecer</button></form>
+                            {% if u.id != current_user.id %}
+                            <form method="post" action="{{ url_for('usuarios.cambiar_estado', usuario_id=u.id) }}">{{ m.csrf() }}<button class="btn btn-xs {{ 'btn-danger' if u.activo }}">{{ 'Desactivar' if u.activo else 'Activar' }}</button></form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="7" class="muted">Sin usuarios.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
