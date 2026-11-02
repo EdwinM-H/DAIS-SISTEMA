@@ -20,7 +20,7 @@ def app(tmp_path):
     )
     for k in ("UPLOAD_FOLDER", "GENERATED_FOLDER", "STORAGE_FOLDER"):
         os.makedirs(app.config[k], exist_ok=True)
-    with app.app_context():
+    with app.app_context(), app.test_request_context():
         db.create_all()
         sem = Semestre.crear(2026, "II")
         sem.activo = True
@@ -38,6 +38,27 @@ def app(tmp_path):
 @pytest.fixture()
 def client(app):
     return app.test_client()
+
+
+@pytest.fixture()
+def catalogo(app):
+    """Parte del catalogo oficial de lineas de investigacion de la EPIS."""
+    from models import AreaInvestigacion, LineaInvestigacion, TemaInvestigacion
+
+    ti = AreaInvestigacion(nombre="Tecnologías de Información", orden=1)
+    oe = AreaInvestigacion(nombre="Organización Empresarial y Gestión de Información", orden=2)
+    datos = LineaInvestigacion(area=ti, nombre="Ciencia de datos", orden=1)
+    software = LineaInvestigacion(area=ti, nombre="Desarrollo de software", orden=2)
+    si = LineaInvestigacion(area=oe, nombre="Sistemas de información", orden=1)
+    temas = {
+        "ml": TemaInvestigacion(linea=datos, nombre="Machine learning", orden=1),
+        "bi": TemaInvestigacion(linea=datos, nombre="Inteligencia de negocios", orden=2),
+        "auto": TemaInvestigacion(linea=software, nombre="Automatización de procesos", orden=1),
+        "itil": TemaInvestigacion(linea=si, nombre="Gestión de servicios de TI (ITIL, COBIT)", orden=1),
+    }
+    db.session.add_all([ti, oe])
+    db.session.commit()
+    return {"lineas": {"datos": datos, "software": software, "si": si}, "temas": temas}
 
 
 def login(client, username, password="Clave2026"):

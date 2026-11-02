@@ -30,7 +30,10 @@ def _tesis_propia(tesis_id):
 @estudiante_required
 def mi_tesis(tesis_id):
     tesis = _tesis_propia(tesis_id)
-    return render_template("portal_estudiante/tesis.html", tesis=tesis)
+    return render_template("portal_estudiante/tesis.html", tesis=tesis,
+                           estado_revision=tesis_service.estado_revision(tesis),
+                           textos_revision=tesis_service.ESTADOS_REVISION_TEXTO,
+                           hay_observaciones=tesis_service.hay_observaciones_pendientes(tesis))
 
 
 @estudiante_bp.route("/tesis/<int:tesis_id>/version", methods=["POST"])
@@ -41,7 +44,8 @@ def subir_version(tesis_id):
         ruta, nombre = guardar_archivo(request.files.get("archivo"), f"tesis/{tesis.id}", {"pdf", "docx", "doc"})
         if not ruta:
             raise ValueError("Seleccione el archivo (PDF o Word).")
-        tesis_service.subir_version(tesis, ruta, nombre, request.form.get("comentario"), current_user)
+        sub = guardar_archivo(request.files.get("subsanacion"), f"tesis/{tesis.id}", {"pdf", "docx", "doc"})
+        tesis_service.subir_version(tesis, ruta, nombre, request.form.get("comentario"), current_user, sub)
         db.session.commit()
         flash("Documento enviado. Sus revisores fueron notificados.", "success")
     except (ValueError, tesis_service.TesisError) as exc:

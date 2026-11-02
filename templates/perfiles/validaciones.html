@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Validaciones de perfil{% endblock %}
+{% block page_title %}Perfiles académicos{% endblock %}
+{% block content %}
+{{ m.page_head('Validación de datos declarados', 'Grado académico, colegiatura y licencias declarados por los docentes. Hasta aprobarlos se sigue usando el valor anterior.', [('Perfiles académicos', url_for('perfiles.index')), ('Validaciones', None)]) }}
+<div class="pills">
+    {% for k, v in [('pendiente', 'Pendientes'), ('aprobado', 'Aprobados'), ('rechazado', 'Rechazados'), ('todos', 'Todos')] %}
+    <a class="pill {{ 'active' if estado == k }}" href="{{ url_for('perfiles.validaciones', estado=k) }}">{{ v }}</a>
+    {% endfor %}
+</div>
+<div class="db-card">
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Fecha</th><th>Docente</th><th>Dato</th><th>Valor actual</th><th>Valor declarado</th><th>Sustento</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+            {% for c in cambios %}
+                <tr>
+                    <td class="small nowrap">{{ c.creado_en|fecha(true) }}</td>
+                    <td class="cell-title">{{ c.docente.nombre_completo }}</td>
+                    <td>{{ c.campo_nombre }}</td>
+                    <td class="small muted">{{ (c.valor_anterior or '—')|replace('|', ' / ') }}</td>
+                    <td class="small strong">{{ (c.valor_nuevo or '—')|replace('|', ' / ') }}</td>
+                    <td class="small">{% if c.archivo_ruta %}<a href="{{ url_for('archivos.descargar', tipo='perfil', item_id=c.id) }}">{{ m.icon('clip', 'width="14" height="14"') }} ver</a>{% endif %}{% if c.motivo %} {{ c.motivo }}{% endif %}</td>
+                    <td>{{ m.estado(c.estado, c.estado_nombre) }}</td>
+                    <td>{% if c.estado == 'pendiente' %}
+                        <div class="table-actions">
+                            <form method="post" action="{{ url_for('perfiles.revisar', cambio_id=c.id) }}">{{ m.csrf() }}<input type="hidden" name="accion" value="aprobar"><button class="btn btn-xs btn-success">Aprobar</button></form>
+                            <button class="btn btn-xs btn-danger" data-dialog="dlgRechazo" data-action="{{ url_for('perfiles.revisar', cambio_id=c.id) }}">Rechazar</button>
+                        </div>{% endif %}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8">{{ m.empty('Nada por revisar', '', 'check') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<dialog class="dlg" id="dlgRechazo">
+    <form method="post">{{ m.csrf() }}<input type="hidden" name="accion" value="rechazar">
+        <div class="dlg-head"><h3>Rechazar dato declarado</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+        <div class="dlg-body"><div class="form-group"><label class="required">Motivo (lo verá el docente)</label><textarea name="motivo" class="form-control" required></textarea></div></div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-danger">Rechazar</button></div>
+    </form>
+</dialog>
+{% endblock %}

@@ -19,9 +19,9 @@
         <div class="db-card__body">
             <div class="form-group"><label>Correo institucional</label><input type="email" name="correo_institucional" class="form-control" value="{{ docente.correo_institucional or '' }}"></div>
             <div class="form-group"><label>Telefono</label><input name="telefono" class="form-control" value="{{ docente.telefono or '' }}"></div>
-            <div class="form-group"><label>Grado academico</label><input name="grado_academico" class="form-control" value="{{ docente.grado_academico or '' }}"></div>
             <div class="form-group"><label>Especialidad</label><input name="especialidad" class="form-control" value="{{ docente.especialidad or '' }}"></div>
-            <div class="form-actions"><a class="btn" href="{{ url_for('auth.cambiar_password') }}">{{ m.icon('key') }} Cambiar contrasena</a><button class="btn btn-primary">Guardar</button></div>
+            <p class="small muted">Grado, colegiatura, líneas de investigación y licencias se registran en <a href="{{ url_for('docente.perfil_academico') }}">Mi perfil académico</a>.</p>
+            <div class="form-actions"><a class="btn" href="{{ url_for('auth.cambiar_password') }}">{{ m.icon('key') }} Cambiar contraseña</a><button class="btn btn-primary">Guardar</button></div>
         </div>
     </form>
 </div>

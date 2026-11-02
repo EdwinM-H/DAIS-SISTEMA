@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Perfil de {{ docente.nombre_completo }}{% endblock %}
+{% block page_title %}Perfiles académicos{% endblock %}
+{% block content %}
+{{ m.page_head(docente.nombre_completo, 'Prelación: ' ~ ((docente.faltantes_prelacion()|length == 0) and 'completa' or ('falta ' ~ docente.faltantes_prelacion()|join(', '))), [('Perfiles académicos', url_for('perfiles.index')), (docente.codigo, None)]) }}
+<div class="grid grid-2">
+    <form method="post" class="db-card">
+        {{ m.csrf() }}<input type="hidden" name="seccion" value="oficial">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('shield', 'width="17" height="17"') }} Datos oficiales y validados</h3></div>
+        <div class="db-card__body form-grid">
+            <div class="form-group"><label>Categoría</label><select name="categoria_docente" class="form-control"><option value="">—</option>{% for c in categorias %}<option {{ 'selected' if docente.categoria_docente == c }}>{{ c }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Condición</label><select name="condicion" class="form-control"><option value="">—</option>{% for k, v in condiciones.items() %}<option value="{{ k }}" {{ 'selected' if docente.condicion == k }}>{{ v }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Año de ingreso a la UAC</label><input type="number" name="anio_ingreso" min="1950" max="{{ anio_actual }}" class="form-control" value="{{ docente.anio_ingreso or '' }}"></div>
+            <div class="form-group"><label>Grado académico</label><select name="grado_academico" class="form-control"><option value="">—</option>{% for g in grados %}<option {{ 'selected' if docente.grado_academico == g }}>{{ g }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>N.° de colegiatura</label><input name="colegiatura_numero" class="form-control" value="{{ docente.colegiatura_numero or '' }}"></div>
+            <div class="form-group"><label>Año de colegiatura</label><input type="number" name="colegiatura_anio" min="1950" max="{{ anio_actual }}" class="form-control" value="{{ docente.colegiatura_anio or '' }}"></div>
+            <div class="form-group"><label>Licencia desde</label><input type="date" name="licencia_desde" class="form-control" value="{{ docente.licencia_desde.isoformat() if docente.licencia_desde else '' }}"></div>
+            <div class="form-group"><label>Licencia hasta</label><input type="date" name="licencia_hasta" class="form-control" value="{{ docente.licencia_hasta.isoformat() if docente.licencia_hasta else '' }}"></div>
+            <div class="form-group full"><label style="font-weight:500;"><input type="checkbox" name="es_autoridad" value="1" {{ 'checked' if docente.es_autoridad }}> Es autoridad (Decano u otro cargo que impide dictaminar, Art. 73)</label>
+                <input name="cargo_autoridad" class="form-control" placeholder="Cargo" value="{{ docente.cargo_autoridad or '' }}"></div>
+            <div class="form-actions full"><button class="btn btn-primary">Guardar datos oficiales</button></div>
+        </div>
+    </form>
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('history', 'width="17" height="17"') }} Historial</h3></div>
+        <div class="db-card__body" style="max-height:440px;overflow:auto;">
+            <ul class="timeline">
+            {% for c in docente.cambios_perfil[:40] %}
+                <li><strong>{{ c.campo_nombre }}</strong>: {{ (c.valor_nuevo or '—')|replace('|', ' / ') }} {{ m.estado(c.estado, c.estado_nombre) }}
+                    <div class="when">{{ c.creado_en|fecha(true) }}{% if c.solicitado_por %} · {{ c.solicitado_por.nombre_completo }}{% endif %}</div></li>
+            {% else %}<li class="muted">Sin cambios registrados.</li>{% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+<form method="post" class="db-card mt">
+    {{ m.csrf() }}<input type="hidden" name="seccion" value="afinidad">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('flask', 'width="17" height="17"') }} Líneas y temas (lo completa normalmente el docente)</h3>
+        <div class="row"><label class="small">Experiencia (años)</label><input type="number" name="experiencia_anios" min="0" max="70" class="form-control" style="width:90px;" value="{{ docente.experiencia_anios if docente.experiencia_anios is not none else '' }}"></div></div>
+    <div class="db-card__body">
+        {% set modo = 'docente' %}
+        {% set sel_lineas = docente.lineas|map(attribute='id')|list %}
+        {% set sel_temas = docente.temas|map(attribute='id')|list %}
+        {% set principal_id = docente.linea_principal_id %}
+        {% include "_selector_temas.html" %}
+        <div class="form-actions"><button class="btn btn-primary">Guardar líneas y temas</button></div>
+    </div>
+</form>
+{% endblock %}

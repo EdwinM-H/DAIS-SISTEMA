@@ -2,14 +2,15 @@
 
 from datetime import datetime
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort, session
 from flask_login import current_user
 
 from models import (
-    db, Semestre, Evaluacion, Capacitacion, Investigacion, Tesis, TesisMiembro,
+    db, Semestre, Evaluacion, Capacitacion, Investigacion, Tesis, TesisMiembro, Dictamen,
 )
+from models.docente import GRADOS
 from models.produccion import TIPOS_CAPACITACION, TIPOS_INVESTIGACION, SUBTIPOS_INVESTIGACION
-from services import tesis_service
+from services import tesis_service, perfil_service
 from services.evaluacion_service import analisis_docente, historial_docente
 from services.excel_service import a_numero
 from utils import docente_required, guardar_archivo, eliminar_archivo, notificar_gestion
@@ -41,11 +42,7 @@ def inicio():
     analisis = analisis_docente(docente.id, semestre.id) if semestre else None
 
     historial = [h for h in historial_docente(docente.id) if h["semestre"].publicado]
-    tesis_pendientes = [
-        m for m in docente.tesis_roles
-        if m.rol == "dictaminante" and m.estado_revision == "pendiente"
-        and m.tesis.estado not in ("sustentada", "anulada") and m.tesis.versiones
-    ]
+    tesis_pendientes = _pendientes_tesis(docente)
     return render_template(
         "portal_docente/inicio.html",
         docente=docente, semestre=semestre, semestres=semestres, analisis=analisis, historial=historial,
@@ -230,11 +227,29 @@ def eliminar_investigacion(item_id):
 # ----------------------------------------------------------------------
 # Tesis
 # ----------------------------------------------------------------------
+def _pendientes_tesis(docente):
+    """Designaciones por responder y dictamenes por emitir del docente."""
+    pendientes = []
+    for m in docente.tesis_roles:
+        if m.tesis.cerrada:
+            continue
+        if m.estado_designacion == "propuesto":
+            pendientes.append({"miembro": m, "tipo": "designacion"})
+        for d in m.dictamenes:
+            if d.pendiente and m.estado_designacion == "aceptado":
+                pendientes.append({"miembro": m, "tipo": "dictamen", "dictamen": d})
+    return pendientes
+
+
 @docente_bp.route("/tesis")
 @docente_required
 def tesis():
-    roles = sorted(_docente().tesis_roles, key=lambda m: (m.tesis.estado in ("sustentada", "anulada"), -m.tesis.id))
-    return render_template("portal_docente/tesis.html", roles=roles)
+    docente = _docente()
+    roles = sorted(
+        [m for m in docente.tesis_roles if m.estado_designacion not in ("retirado",)],
+        key=lambda m: (m.tesis.cerrada, m.estado_designacion != "propuesto", -m.tesis.id),
+    )
+    return render_template("portal_docente/tesis.html", roles=roles, pendientes=_pendientes_tesis(docente))
 
 
 def _membresias(tesis_obj):
@@ -248,25 +263,46 @@ def tesis_detalle(tesis_id):
     mios = _membresias(tesis_obj)
     if not mios:
         abort(403)
-    return render_template("portal_docente/tesis_detalle.html", tesis=tesis_obj, mios=mios)
+    return render_template("portal_docente/tesis_detalle.html", tesis=tesis_obj, mios=mios,
+                           estado_revision=tesis_service.estado_revision(tesis_obj),
+                           textos_revision=tesis_service.ESTADOS_REVISION_TEXTO)
 
 
-@docente_bp.route("/tesis/revision/<int:miembro_id>", methods=["POST"])
+@docente_bp.route("/tesis/designacion/<int:miembro_id>", methods=["POST"])
 @docente_required
-def revision(miembro_id):
+def responder_designacion(miembro_id):
     miembro = db.get_or_404(TesisMiembro, miembro_id)
     if miembro.docente_id != current_user.docente_id:
         abort(403)
     try:
-        archivo = guardar_archivo(request.files.get("archivo"), f"tesis/{miembro.tesis_id}/dictamenes", {"pdf", "docx", "doc"})
-        tesis_service.registrar_revision(miembro, request.form.get("estado"), request.form.get("observaciones"),
-                                         current_user, archivo)
+        acepta = request.form.get("respuesta") == "acepto"
+        tesis_service.responder_designacion(miembro, acepta, request.form.get("motivo"), current_user)
         db.session.commit()
-        flash("Su revision fue registrada y notificada al estudiante.", "success")
+        flash("Designación aceptada." if acepta else "Impedimento registrado. El DAIS designará a otro docente.",
+              "success" if acepta else "info")
+    except tesis_service.TesisError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    return redirect(url_for("docente.tesis_detalle", tesis_id=miembro.tesis_id) if miembro.estado_designacion == "aceptado"
+                    else url_for("docente.tesis"))
+
+
+@docente_bp.route("/tesis/dictamen/<int:dictamen_id>", methods=["POST"])
+@docente_required
+def emitir_dictamen(dictamen_id):
+    dictamen = db.get_or_404(Dictamen, dictamen_id)
+    if dictamen.miembro.docente_id != current_user.docente_id:
+        abort(403)
+    try:
+        archivo = guardar_archivo(request.files.get("archivo"), f"tesis/{dictamen.tesis_id}/dictamenes", {"pdf", "docx", "doc"})
+        tesis_service.emitir_dictamen(dictamen, request.form.get("resultado"), request.form.get("observaciones"),
+                                      current_user, archivo)
+        db.session.commit()
+        flash("Dictamen registrado y notificado al tesista.", "success")
     except (ValueError, tesis_service.TesisError) as exc:
         db.session.rollback()
         flash(str(exc), "danger")
-    return redirect(url_for("docente.tesis_detalle", tesis_id=miembro.tesis_id))
+    return redirect(url_for("docente.tesis_detalle", tesis_id=dictamen.tesis_id))
 
 
 # ----------------------------------------------------------------------
@@ -277,10 +313,49 @@ def revision(miembro_id):
 def perfil():
     docente = _docente()
     if request.method == "POST":
-        for campo in ("telefono", "correo_institucional", "especialidad", "grado_academico"):
+        for campo in ("telefono", "correo_institucional", "especialidad"):
             setattr(docente, campo, request.form.get(campo, "").strip() or None)
         current_user.email = docente.correo_institucional
         db.session.commit()
-        flash("Perfil actualizado.", "success")
+        flash("Datos de contacto actualizados.", "success")
         return redirect(url_for("docente.perfil"))
     return render_template("portal_docente/perfil.html", docente=docente)
+
+
+@docente_bp.route("/perfil-academico", methods=["GET", "POST"])
+@docente_required
+def perfil_academico():
+    docente = _docente()
+    if request.args.get("despues"):
+        session["perfil_pospuesto"] = True
+        return redirect(url_for("docente.inicio"))
+    if request.method == "POST":
+        try:
+            perfil_service.guardar_afinidad(
+                docente, [int(x) for x in request.form.getlist("lineas") if x.isdigit()],
+                [int(x) for x in request.form.getlist("temas") if x.isdigit()],
+                request.form.get("linea_principal", type=int),
+                request.form.get("experiencia_anios", type=int), current_user)
+            sustento = guardar_archivo(request.files.get("sustento"), f"docentes/{docente.id}/perfil")
+            enviados = []
+            for campo, valor in (
+                ("grado_academico", request.form.get("grado_academico", "")),
+                ("colegiatura", f"{request.form.get('colegiatura_numero', '').strip()}|{request.form.get('colegiatura_anio', '').strip()}"),
+                ("licencia", f"{request.form.get('licencia_desde', '')}|{request.form.get('licencia_hasta', '')}"),
+            ):
+                if perfil_service.solicitar_cambio(docente, campo, valor, current_user,
+                                                   request.form.get("motivo"), sustento):
+                    enviados.append(campo)
+            db.session.commit()
+            msg = "Perfil académico guardado."
+            if enviados:
+                msg += " Los datos de grado, colegiatura o licencia quedaron pendientes de validación por el DAIS."
+            flash(msg, "success")
+            return redirect(url_for("docente.perfil_academico"))
+        except (perfil_service.PerfilError, ValueError) as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+    pendientes = {c.campo: c for c in docente.cambios_perfil if c.estado == "pendiente"}
+    return render_template("portal_docente/perfil_academico.html", docente=docente, areas=perfil_service.catalogo(),
+                           grados=GRADOS, pendientes=pendientes, max_lineas=perfil_service.MAX_LINEAS,
+                           max_temas=perfil_service.MAX_TEMAS)

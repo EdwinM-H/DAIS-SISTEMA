@@ -13,11 +13,12 @@ from routes.tesis import tesis_bp
 from routes.portal_docente import docente_bp
 from routes.portal_estudiante import estudiante_bp
 from routes.archivos import archivos_bp
+from routes.perfiles import perfiles_bp
 
 BLUEPRINTS = (
     auth_bp, dashboard_bp, docentes_bp, importacion_bp, semestres_bp, seleccion_bp,
     documentos_bp, ranking_bp, historial_bp, usuarios_bp, produccion_bp, tesis_bp,
-    docente_bp, estudiante_bp, archivos_bp,
+    docente_bp, estudiante_bp, archivos_bp, perfiles_bp,
 )
 
 

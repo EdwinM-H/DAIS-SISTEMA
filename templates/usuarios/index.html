@@ -33,7 +33,14 @@
                     <td><span class="badge badge-outline">{{ u.rol_nombre }}</span></td>
                     <td class="small">
                         {% if u.docente %}<a href="{{ url_for('docentes.detalle', docente_id=u.docente.id) }}">{{ u.docente.codigo }}</a>
-                        {% elif u.estudiante %}Estudiante {{ u.estudiante.codigo }}{% else %}<span class="muted">-</span>{% endif %}
+                        {% elif u.estudiante %}Estudiante {{ u.estudiante.codigo }}
+                        {% elif u.rol == 'docente' %}
+                            <form method="post" action="{{ url_for('usuarios.vincular', usuario_id=u.id) }}" class="row" style="gap:4px;">{{ m.csrf() }}
+                                <span class="badge badge-danger">Sin vínculo</span>
+                                <select name="docente_id" class="form-control" style="max-width:180px;padding:4px 6px;font-size:.78rem;">
+                                    {% for d in docentes_libres %}<option value="{{ d.id }}" {{ 'selected' if d.nombre_natural|lower == u.nombre_completo|lower }}>{{ d.nombre_completo }}</option>{% endfor %}
+                                </select><button class="btn btn-xs btn-primary">Vincular</button></form>
+                        {% else %}<span class="muted">-</span>{% endif %}
                     </td>
                     <td>{% if u.activo %}<span class="badge badge-success">Activo</span>{% else %}<span class="badge badge-secondary">Desactivado</span>{% endif %}</td>
                     <td class="muted small">{{ u.ultimo_acceso|fecha(true) }}</td>

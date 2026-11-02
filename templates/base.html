@@ -54,9 +54,12 @@
                     {{ nav(url_for('produccion.index', tipo='investigaciones'), 'Investigaciones', 'flask', ep.startswith('produccion.') and tipo_prod == 'investigaciones') }}
                 {% endcall %}
 
-                {% call grupo('tesis', 'Tesis', 'book', ep.startswith('tesis.')) %}
-                    {{ nav(url_for('tesis.index'), 'Gestión de tesis', 'book', ep.startswith('tesis.') and ep != 'tesis.estudiantes') }}
+                {% call grupo('tesis', 'Tesis', 'book', ep.startswith('tesis.') or ep.startswith('perfiles.'), nav_validaciones_perfil) %}
+                    {{ nav(url_for('tesis.index'), 'Gestión de tesis', 'book', ep.startswith('tesis.') and ep not in ('tesis.estudiantes', 'tesis.asignacion', 'tesis.configuracion')) }}
+                    {{ nav(url_for('tesis.asignacion'), 'Asignación automática', 'star', ep == 'tesis.asignacion') }}
+                    {{ nav(url_for('perfiles.index'), 'Perfiles académicos', 'user', ep.startswith('perfiles.'), nav_validaciones_perfil) }}
                     {{ nav(url_for('tesis.estudiantes'), 'Estudiantes', 'cap', ep == 'tesis.estudiantes') }}
+                    {% if current_user.es_direccion %}{{ nav(url_for('tesis.configuracion'), 'Configuración', 'calendar', ep == 'tesis.configuracion') }}{% endif %}
                 {% endcall %}
 
                 {% if current_user.es_direccion %}
@@ -71,7 +74,8 @@
                     {{ nav(url_for('docente.investigaciones'), 'Publicaciones e investigaciones', 'flask', ep == 'docente.investigaciones') }}
                 {% endcall %}
                 {{ nav(url_for('docente.tesis'), 'Mis tesis', 'book', ep.startswith('docente.tesis'), nav_tesis_pendientes) }}
-                {{ nav(url_for('docente.perfil'), 'Mi perfil', 'user', ep == 'docente.perfil') }}
+                {{ nav(url_for('docente.perfil_academico'), 'Mi perfil académico', 'cap', ep == 'docente.perfil_academico', '!' if perfil_faltante else 0) }}
+                {{ nav(url_for('docente.perfil'), 'Datos de contacto', 'user', ep == 'docente.perfil') }}
             {% elif current_user.es_estudiante %}
                 {{ nav(url_for('estudiante.inicio'), 'Mi tesis', 'book', ep.startswith('estudiante.')) }}
             {% endif %}
@@ -85,10 +89,8 @@
                 </div>
             </div>
             <div class="sidebar-actions">
-                {% set pend = current_user.notificaciones_pendientes() %}
-                <a href="{{ url_for('auth.notificaciones') }}" class="sb-action {{ 'active' if ep == 'auth.notificaciones' }}" title="Notificaciones">{{ m.icon('bell') }}{% if pend %}<span class="dot">{{ pend }}</span>{% endif %}</a>
-                <a href="{{ url_for('auth.cambiar_password') }}" class="sb-action {{ 'active' if ep == 'auth.cambiar_password' }}" title="Cambiar contraseña">{{ m.icon('key') }}</a>
-                <a href="{{ url_for('auth.logout') }}" class="sb-action sb-logout" title="Cerrar sesión">{{ m.icon('logout') }}<span>Salir</span></a>
+                <button type="button" class="sb-action" data-dialog="dlgPassword" title="Cambiar contraseña">{{ m.icon('key') }}</button>
+                <a href="{{ url_for('auth.logout') }}" class="sb-action sb-logout" title="Cerrar sesión">{{ m.icon('logout') }}<span>Cerrar sesión</span></a>
             </div>
         </div>
     </aside>
@@ -114,11 +116,58 @@
                     </div>
                 </div>
                 {% endif %}
-                {% set pendientes = current_user.notificaciones_pendientes() %}
-                <a class="icon-btn" href="{{ url_for('auth.notificaciones') }}" title="Notificaciones">{{ m.icon('bell') }}{% if pendientes %}<span class="dot">{{ pendientes }}</span>{% endif %}</a>
-                <div class="header-user">
-                    <div class="user-avatar-sm">{{ current_user.iniciales }}</div>
-                    <span class="header-user-name">{{ current_user.nombre_completo }}</span>
+                {% set notif_pend = current_user.notificaciones_pendientes() %}
+                {# ---- Panel flotante de notificaciones ---- #}
+                <div class="popover-wrap" data-popover>
+                    <button type="button" class="icon-btn" data-popover-trigger aria-haspopup="true" aria-expanded="false" title="Notificaciones">
+                        {{ m.icon('bell') }}{% if notif_pend %}<span class="dot">{{ notif_pend if notif_pend < 100 else '99+' }}</span>{% endif %}
+                    </button>
+                    <div class="popover popover-notif" role="menu">
+                        <div class="popover-head">
+                            <strong>Notificaciones</strong>
+                            {% if notif_pend %}
+                            <form method="post" action="{{ url_for('auth.marcar_leidas') }}">{{ m.csrf() }}<input type="hidden" name="volver" value="{{ request.full_path }}">
+                                <button class="link-btn">Marcar todas como leídas</button></form>
+                            {% endif %}
+                        </div>
+                        <div class="popover-body">
+                            {% for n in current_user.notificaciones.limit(8).all() %}
+                            <a class="notif-item {{ 'unread' if not n.leida }}" href="{{ url_for('auth.abrir_notificacion', notif_id=n.id) }}">
+                                <span class="notif-dot"></span>
+                                <span class="notif-texto">
+                                    <span class="notif-title">{{ n.titulo }}</span>
+                                    {% if n.mensaje %}<span class="notif-msg">{{ n.mensaje|truncate(110) }}</span>{% endif %}
+                                    <span class="notif-when">{{ n.creado_en|fecha(true) }}</span>
+                                </span>
+                            </a>
+                            {% else %}
+                            <div class="popover-empty">{{ m.icon('bell') }}<span>No tiene notificaciones.</span></div>
+                            {% endfor %}
+                        </div>
+                        <a class="popover-foot" href="{{ url_for('auth.notificaciones') }}">Ver todas las notificaciones</a>
+                    </div>
+                </div>
+                {# ---- Menu de la cuenta ---- #}
+                <div class="popover-wrap" data-popover>
+                    <button type="button" class="header-user" data-popover-trigger aria-haspopup="true" aria-expanded="false">
+                        <div class="user-avatar-sm">{{ current_user.iniciales }}</div>
+                        <span class="header-user-name">{{ current_user.nombre_completo }}</span>
+                        <span class="semester-arrow">&#9660;</span>
+                    </button>
+                    <div class="popover popover-user" role="menu">
+                        <div class="popover-user-head">
+                            <div class="user-avatar-sm">{{ current_user.iniciales }}</div>
+                            <div><strong>{{ current_user.nombre_completo }}</strong><span>{{ current_user.username }} · {{ current_user.rol_nombre }}</span></div>
+                        </div>
+                        {% if current_user.es_docente %}
+                        <a class="menu-item" href="{{ url_for('docente.perfil_academico') }}">{{ m.icon('cap') }} Mi perfil académico</a>
+                        <a class="menu-item" href="{{ url_for('docente.perfil') }}">{{ m.icon('user') }} Datos de contacto</a>
+                        {% endif %}
+                        <button type="button" class="menu-item" data-dialog="dlgPassword">{{ m.icon('key') }} Cambiar contraseña</button>
+                        <a class="menu-item" href="{{ url_for('auth.notificaciones') }}">{{ m.icon('bell') }} Notificaciones</a>
+                        <div class="menu-sep"></div>
+                        <a class="menu-item menu-danger" href="{{ url_for('auth.logout') }}">{{ m.icon('logout') }} Cerrar sesión</a>
+                    </div>
                 </div>
             </div>
         </header>
@@ -132,10 +181,33 @@
                 </div>
                 {% endif %}
             {% endwith %}
+            {% if perfil_faltante and ep != 'docente.perfil_academico' %}
+            <div class="callout gold mb aviso-perfil">{{ m.icon('cap', 'width="16" height="16" style="vertical-align:-3px"') }}
+                Complete su perfil académico (falta: {{ perfil_faltante|join(', ') }}). Con él, el DAIS le propone tesis afines a su especialidad.
+                <a href="{{ url_for('docente.perfil_academico') }}"><strong>Completar ahora &rarr;</strong></a></div>
+            {% endif %}
             {% block content %}{% endblock %}
         </div>
     </main>
 </div>
+<dialog class="dlg dlg-sm" id="dlgPassword">
+    <form method="post" action="{{ url_for('auth.cambiar_password') }}" autocomplete="off">
+        {{ m.csrf() }}<input type="hidden" name="volver" value="{{ request.full_path }}">
+        <div class="dlg-head"><h3>{{ m.icon('key', 'width="17" height="17" style="vertical-align:-3px"') }} Cambiar contraseña</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+        <div class="dlg-body">
+            <div class="form-group"><label class="required">Contraseña actual</label>
+                <input type="password" name="actual" class="form-control" required autocomplete="current-password"></div>
+            <div class="form-group"><label class="required">Nueva contraseña</label>
+                <input type="password" name="nueva" class="form-control" required minlength="8" autocomplete="new-password" data-pass-nueva>
+                <div class="pass-reglas"><span data-regla="largo">8 caracteres o más</span><span data-regla="letra">una letra</span><span data-regla="numero">un número</span></div></div>
+            <div class="form-group"><label class="required">Confirmar nueva contraseña</label>
+                <input type="password" name="confirmar" class="form-control" required minlength="8" autocomplete="new-password" data-pass-confirmar>
+                <div class="form-hint" data-pass-coincide></div></div>
+            <label class="small" style="font-weight:500;"><input type="checkbox" data-pass-ver> Mostrar contraseñas</label>
+        </div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">Guardar contraseña</button></div>
+    </form>
+</dialog>
 {% if current_user.es_gestion %}
 <div class="modal-overlay" id="modalOverlay" style="display:none;">
     <div class="modal-card">

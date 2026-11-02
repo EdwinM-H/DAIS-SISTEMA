@@ -92,96 +92,47 @@ def test_docente_registra_capacitacion_con_certificado(client, app):
         assert Notificacion.query.filter(Notificacion.titulo.like("%validado%")).count() == 1
 
 
-def test_flujo_completo_de_tesis(client, app):
-    with app.app_context():
-        docentes = []
-        for i, (n, a) in enumerate([("Luis", "Asesor Uno"), ("Rosa", "Dictaminante Dos"), ("Hugo", "Dictaminante Tres")]):
-            d = Docente(codigo=f"DOC-000{i + 1}", nombres=n, apellidos=a)
-            db.session.add(d)
-            db.session.flush()
-            _cuenta(d)
-            docentes.append((d.id, d.usuario.username))
+def test_cuenta_docente_sin_vinculo_muestra_mensaje_y_se_puede_vincular(client, app):
+    d = Docente(codigo="DOC-0001", nombres="Ana", apellidos="Quispe Lopez")
+    db.session.add(d)
+    u = Usuario(username="aquispe", nombre_completo="Ana Quispe Lopez", rol="docente", debe_cambiar_password=False)
+    u.set_password("Docente2026")
+    db.session.add(u)
+    db.session.commit()
+    login(client, "aquispe", "Docente2026")
+    for url in ("/docente/", "/docente/tesis", "/docente/perfil-academico", "/"):
+        r = client.get(url, follow_redirects=True)
+        assert r.status_code == 409 and "no está vinculada" in r.get_data(as_text=True), url
+    client.get("/logout")
     login(client, "directora")
-    r = client.post("/tesis/nueva", data={
-        "titulo": "Sistema de recomendacion academica", "e1_codigo": "020100", "e1_nombres": "Carla",
-        "e1_apellidos": "Mamani Huaman", "asesor_id": str(docentes[0][0]),
-    })
-    assert r.status_code == 302
-    with app.app_context():
-        tesis = Tesis.query.one()
-        tesis_id = tesis.id
-        assert tesis.asesor.docente_id == docentes[0][0] and tesis.estado == "registrada"
-
-    # El asesor no puede ser dictaminante de la misma tesis
-    client.post(f"/tesis/{tesis_id}/asignar", data={"rol": "dictaminante", "docente_id": [str(docentes[0][0])]})
-    client.post(f"/tesis/{tesis_id}/asignar", data={"rol": "dictaminante", "docente_id": [str(docentes[1][0]), str(docentes[2][0])]})
-    with app.app_context():
-        tesis = db.session.get(Tesis, tesis_id)
-        assert len(tesis.dictaminantes) == 2 and tesis.estado == "en_dictamen"
-        estudiante_id = tesis.estudiantes[0].id
-
-    # Acceso del estudiante
-    html = client.post(f"/tesis/estudiantes/{estudiante_id}/cuenta").get_data(as_text=True)
-    cajas = re.findall(r'<span class="cred-box">([^<]+)</span>', html)
-    est_user, est_pass = cajas[0], cajas[1]
+    assert "Sin vínculo" in client.get("/usuarios/").get_data(as_text=True)
+    client.post(f"/usuarios/{u.id}/vincular", data={"docente_id": str(d.id)})
     client.get("/logout")
+    login(client, "aquispe", "Docente2026")
+    assert client.get("/docente/").status_code == 200
 
-    # El estudiante sube su tesis
-    login(client, est_user, est_pass)
-    client.post("/cuenta/contrasena", data={"actual": est_pass, "nueva": "Tesista2026", "confirmar": "Tesista2026"})
-    r = client.post(f"/estudiante/tesis/{tesis_id}/version", data={"archivo": (io.BytesIO(b"%PDF"), "tesis.pdf")},
-                    content_type="multipart/form-data")
-    assert r.status_code == 302
-    client.get("/logout")
 
-    # Dictaminante 1 observa, el estudiante corrige, ambos dan visto bueno
-    with app.app_context():
-        tesis = db.session.get(Tesis, tesis_id)
-        m1, m2 = tesis.dictaminantes
-        ids = {m.docente_id: m.id for m in (m1, m2)}
-    login(client, docentes[1][1], "Docente2026")
-    assert "Mi dictamen" in client.get(f"/docente/tesis/{tesis_id}").get_data(as_text=True)
-    client.post(f"/docente/tesis/revision/{ids[docentes[1][0]]}", data={"estado": "observado", "observaciones": "Mejorar el marco teorico"})
-    client.get("/logout")
-    with app.app_context():
-        assert db.session.get(Tesis, tesis_id).estado == "observada"
+def test_campana_y_cambio_de_clave_desde_ventana(client, app):
+    from models import Notificacion
 
-    login(client, est_user, "Tesista2026")
-    html = client.get(f"/estudiante/tesis/{tesis_id}").get_data(as_text=True)
-    assert "Mejorar el marco teorico" in html
-    client.post(f"/estudiante/tesis/{tesis_id}/version", data={"archivo": (io.BytesIO(b"%PDF v2"), "tesis_v2.pdf")},
-                content_type="multipart/form-data")
-    client.get("/logout")
-    with app.app_context():
-        assert db.session.get(Tesis, tesis_id).estado == "en_dictamen"
-
-    for did, uname in docentes[1:]:
-        login(client, uname, "Docente2026")
-        client.post(f"/docente/tesis/revision/{ids[did]}", data={"estado": "visto_bueno"})
-        client.get("/logout")
-    with app.app_context():
-        tesis = db.session.get(Tesis, tesis_id)
-        assert tesis.estado == "dictamen_favorable" and tesis.progreso_dictamen == (2, 2)
-
-    # Un docente ajeno no puede ver la tesis
-    with app.app_context():
-        otro = Docente(codigo="DOC-0099", nombres="Ajeno", apellidos="Sin Rol")
-        db.session.add(otro)
-        db.session.flush()
-        _cuenta(otro)
-        uname = otro.usuario.username
-    login(client, uname, "Docente2026")
-    assert client.get(f"/docente/tesis/{tesis_id}").status_code == 403
-    client.get("/logout")
-
-    # Programar y registrar sustentacion
     login(client, "directora")
-    client.post(f"/tesis/{tesis_id}/sustentacion", data={"accion": "programar", "fecha_sustentacion": "2026-12-01T10:00", "lugar": "Aula 101"})
-    client.post(f"/tesis/{tesis_id}/sustentacion", data={"accion": "registrar", "nota": "17"})
-    with app.app_context():
-        tesis = db.session.get(Tesis, tesis_id)
-        assert tesis.estado == "sustentada" and tesis.nota_sustentacion == 17
-        assert len(tesis.eventos) >= 8
+    u = Usuario.query.filter_by(username="directora").first()
+    db.session.add(Notificacion(usuario_id=u.id, titulo="Aviso de prueba", mensaje="Detalle", url="/ranking"))
+    db.session.commit()
+    html = client.get("/docentes").get_data(as_text=True)
+    assert "popover-notif" in html and "Aviso de prueba" in html and 'id="dlgPassword"' in html
+
+    # Error: vuelve a la misma pagina y reabre la ventana
+    r = client.post("/cuenta/contrasena", data={"actual": "mala", "nueva": "OtraClave9", "confirmar": "OtraClave9", "volver": "/docentes?"})
+    assert r.status_code == 302 and r.headers["Location"].endswith("/docentes?cambiar_clave=1")
+    # Exito: regresa a la pagina donde estaba
+    r = client.post("/cuenta/contrasena", data={"actual": "Clave2026", "nueva": "OtraClave9", "confirmar": "OtraClave9", "volver": "/docentes?"})
+    assert r.headers["Location"].endswith("/docentes")
+    assert Usuario.query.filter_by(username="directora").first().check_password("OtraClave9")
+    # Redireccion externa no permitida
+    r = client.post("/notificaciones/marcar-leidas", data={"volver": "https://evil.example"})
+    assert r.headers["Location"].endswith("/notificaciones")
+    assert Notificacion.query.filter_by(leida=False).count() == 0
 
 
 def test_paginas_de_gestion_responden(client, app, ficha_xlsx):

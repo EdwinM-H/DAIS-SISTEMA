@@ -1,85 +1,132 @@
-{# Seguimiento comun de una tesis: etapas, revisores, versiones y bitacora. Requiere: tesis #}
+{# Seguimiento comun de una tesis. Requiere: tesis. Opcional: gestion (bool) para mostrar acciones del DAIS #}
 {% import "_macros.html" as m with context %}
-{% set vb, total_dic = tesis.progreso_dictamen %}
-{% set etapas = tesis.etapas() %}
+
 <div class="db-card mb">
     <div class="db-card__head">
         <h3 class="db-card__title">{{ m.icon('target', 'width="17" height="17"') }} Avance del proceso</h3>
-        {{ m.estado(tesis.estado, tesis.estado_nombre) }}
+        {{ m.estado(tesis.etapa, tesis.etapa_nombre) }}
     </div>
     <div class="db-card__body">
         <div class="stepper">
-            {% set ns = namespace(actual=False) %}
-            {% for clave, etiqueta, hecho in etapas %}
-                {% set es_actual = not hecho and not ns.actual %}
-                {% if es_actual %}{% set ns.actual = True %}{% endif %}
-                <div class="step {{ 'done' if hecho else ('current' if es_actual) }}"><span class="bullet"></span>{{ etiqueta }}</div>
+            {% for clave, etiqueta, estado in tesis.linea_tiempo() %}
+            <div class="step {{ 'done' if estado == 'hecho' else ('current' if estado == 'actual') }}"><span class="bullet"></span>{{ etiqueta }}</div>
             {% endfor %}
         </div>
-        {% if total_dic %}
-        <div class="row-between mt small"><span>Vistos buenos de dictaminantes</span><strong>{{ vb }} de {{ total_dic }}</strong></div>
-        <div class="progress {{ 'ok' if vb == total_dic else 'warn' }}" style="margin-top:6px;"><span style="width: {{ vb|pct(total_dic) }}%"></span></div>
+        {% if estado_revision %}<div class="callout mt">{{ textos_revision.get(estado_revision, estado_revision) }}</div>{% endif %}
+        {% if tesis.fecha_limite_entrega and tesis.etapa == 'desarrollo' %}
+        <div class="callout gold mt">Plazo para presentar la tesis a dictamen: <strong>{{ tesis.fecha_limite_entrega|fecha }}</strong>{% if tesis.plazo_ampliado %} (ampliado){% endif %} · Art. 87-88</div>
         {% endif %}
-        {% if tesis.fecha_sustentacion %}
-        <div class="callout gold mt">Sustentacion: <strong>{{ tesis.fecha_sustentacion|fecha(true) }}</strong>{% if tesis.lugar_sustentacion %} · {{ tesis.lugar_sustentacion }}{% endif %}{% if tesis.nota_sustentacion is not none %} · Nota: <strong>{{ tesis.nota_sustentacion|nota(0) }}</strong>{% endif %}</div>
+        {% if tesis.fecha_sustentacion and tesis.etapa in ('sustentacion', 'observaciones', 'titulado') %}
+        <div class="callout gold mt">Sustentación {{ tesis.modalidad_sustentacion or '' }}: <strong>{{ tesis.fecha_sustentacion|fecha(true) }}</strong>{% if tesis.lugar_sustentacion %} · {{ tesis.lugar_sustentacion }}{% endif %}
+            {% if tesis.nota_sustentacion is not none %} · Nota final: <strong>{{ tesis.nota_sustentacion }}</strong> ({{ tesis.calificacion }}){% endif %}</div>
         {% endif %}
     </div>
 </div>
 
+<div class="db-card mb">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('users', 'width="17" height="17"') }} Asesor, dictaminantes y jurado</h3>
+        {% if tesis.jurado|length > 1 %}<span class="db-card__tag">Preside: {{ tesis.presidente.docente.nombre_natural }} · Secretario(a): {{ tesis.secretario.docente.nombre_natural }}</span>{% endif %}</div>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Docente</th><th>Rol</th><th>Designación</th><th>Dictamen del proyecto</th><th>Dictamen de la tesis</th>{% if gestion %}<th></th>{% endif %}</tr></thead>
+            <tbody>
+            {% for mb in tesis.miembros|sort(attribute='id') %}
+                {% set dp = tesis.ultimo_dictamen(mb, 'proyecto') %}
+                {% set dt = tesis.ultimo_dictamen(mb, 'tesis') %}
+                <tr class="{{ '' if mb.activo else 'fila-inactiva' }}">
+                    <td>
+                        <div class="cell-title">{{ mb.docente.nombre_natural }}</div>
+                        <div class="cell-sub">{{ mb.docente.categoria_docente or 'Sin categoría' }}{% if mb.rol == 'dictaminante' and mb.activo and mb.orden_prelacion %} · Prelación {{ mb.orden_prelacion }}{% endif %}
+                            {% if mb.automatico %} · <span title="{{ mb.lista_motivos|join(' · ') }}">propuesta automática ({{ mb.puntaje|nota(0) }} pts)</span>{% endif %}</div>
+                        {% if mb.motivo_impedimento %}<div class="cell-sub" style="color:var(--danger);">Impedimento: {{ mb.motivo_impedimento }}</div>{% endif %}
+                    </td>
+                    <td><span class="badge badge-outline">{{ mb.rol_nombre }}</span></td>
+                    <td>{{ m.estado(mb.estado_designacion, mb.estado_nombre) }}</td>
+                    {% for d in (dp, dt) %}
+                    <td>
+                        {% if d %}
+                            {{ m.estado(d.resultado or 'pendiente', d.resultado_nombre) }}
+                            <div class="cell-sub">Ronda {{ d.ronda }} ·
+                            {% if d.pendiente %}
+                                {% set sem = semaforo(d.inicio, d.limite) %}<span class="semaforo {{ sem }}"></span>vence {{ d.limite|fecha }}
+                            {% else %}{{ d.emitido_en|fecha }}{% if d.archivo_ruta %} · <a href="{{ url_for('archivos.descargar', tipo='dictamen', item_id=d.id) }}">informe</a>{% endif %}{% endif %}</div>
+                        {% else %}<span class="muted small">—</span>{% endif %}
+                    </td>
+                    {% endfor %}
+                    {% if gestion %}
+                    <td>
+                        {% if mb.activo and not tesis.cerrada and current_user.es_direccion %}
+                        <div class="table-actions">
+                            <button class="btn btn-xs" data-dialog="dlgReemplazar" data-action="{{ url_for('tesis.reemplazar', miembro_id=mb.id) }}" data-title="Reemplazar a {{ mb.docente.nombre_natural }}">Reemplazar</button>
+                            <form method="post" action="{{ url_for('tesis.retirar', miembro_id=mb.id) }}" data-confirm="¿Retirar a {{ mb.docente.nombre_natural }} sin proponer reemplazo?">{{ m.csrf() }}<button class="btn btn-xs btn-danger" title="Retirar">{{ m.icon('trash') }}</button></form>
+                        </div>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="muted">Aún no hay docentes designados.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# Observaciones de la ronda vigente (lo que el tesista debe levantar) #}
+{% set obs = [] %}
+{% for d in tesis.dictamenes if d.observaciones %}{% set _ = obs.append(d) %}{% endfor %}
+{% if obs %}
+<div class="db-card mb">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('alert', 'width="17" height="17"') }} Dictámenes y observaciones</h3></div>
+    <div class="db-card__body">
+        {% for d in obs|reverse %}
+        <div class="reviewer">
+            <div class="avatar {{ 'ok' if d.resultado == 'suficiente' else 'obs' }}">{{ d.miembro.docente.nombres[:1] }}{{ d.miembro.docente.apellidos[:1] }}</div>
+            <div class="body">
+                <div class="row-between"><div class="cell-title">{{ d.miembro.docente.nombre_natural }} <span class="muted small">· {{ 'Proyecto' if d.etapa == 'proyecto' else 'Tesis' }}, ronda {{ d.ronda }} · {{ d.emitido_en|fecha }}</span></div>{{ m.estado(d.resultado, d.resultado_nombre) }}</div>
+                <div class="obs-text">{{ d.observaciones }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <div class="grid grid-2 mb">
     <div class="db-card">
-        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('users', 'width="17" height="17"') }} Asesor, dictaminantes y jurado</h3></div>
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('file', 'width="17" height="17"') }} Documentos</h3></div>
         <div class="db-card__body">
-            {% for mb in tesis.miembros %}
-            <div class="reviewer">
-                <div class="avatar {{ 'ok' if mb.estado_revision == 'visto_bueno' else ('obs' if mb.estado_revision == 'observado') }}">{{ mb.docente.nombres[:1] }}{{ mb.docente.apellidos[:1] }}</div>
+            {% for v in tesis.versiones %}
+            <div class="item-card">
                 <div class="body">
-                    <div class="row-between">
-                        <div><div class="cell-title">{{ mb.docente.nombre_natural }}</div><div class="cell-sub">{{ mb.rol_nombre }}</div></div>
-                        <div class="row">
-                            {% if mb.emite_dictamen %}{{ m.estado(mb.estado_revision, mb.estado_nombre) }}{% endif %}
-                            {% if mostrar_retiro and current_user.es_direccion and tesis.estado not in ('sustentada', 'anulada') %}
-                            <form method="post" action="{{ url_for('tesis.retirar', miembro_id=mb.id) }}" data-confirm="¿Retirar a {{ mb.docente.nombre_natural }} de esta tesis?">{{ m.csrf() }}<button class="btn btn-xs btn-danger" title="Retirar">{{ m.icon('trash') }}</button></form>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% if mb.fecha_respuesta %}<div class="cell-sub">Respondio el {{ mb.fecha_respuesta|fecha(true) }}</div>{% endif %}
-                    {% if mb.observaciones %}<div class="obs-text">{{ mb.observaciones }}</div>{% endif %}
-                    {% if mb.archivo_ruta %}<a class="btn btn-xs mt" href="{{ url_for('archivos.descargar', tipo='dictamen', item_id=mb.id) }}">{{ m.icon('clip') }} {{ mb.archivo_nombre }}</a>{% endif %}
+                    <div class="title">Versión {{ v.numero }} · {{ v.etapa_nombre }} {% if loop.first %}<span class="badge badge-info">Actual</span>{% endif %}</div>
+                    <div class="meta"><span>{{ v.creado_en|fecha(true) }}</span><span>{{ v.subido_por.nombre_completo if v.subido_por else '' }}</span>
+                        {% if v.subsanacion_ruta %}<a href="{{ url_for('archivos.descargar', tipo='subsanacion', item_id=v.id) }}">levantamiento de observaciones</a>{% endif %}</div>
+                    {% if v.comentario %}<div class="small mt">{{ v.comentario }}</div>{% endif %}
                 </div>
+                <a class="btn btn-xs" href="{{ url_for('archivos.descargar', tipo='tesis', item_id=v.id) }}">{{ m.icon('download') }}</a>
             </div>
             {% else %}
-            <p class="muted small">Aun no se han designado docentes.</p>
+            <p class="muted small">Aún no se ha subido ningún documento.</p>
             {% endfor %}
         </div>
     </div>
     <div class="stack">
         <div class="db-card">
-            <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('file', 'width="17" height="17"') }} Versiones del documento</h3></div>
-            <div class="db-card__body">
-                {% for v in tesis.versiones %}
-                <div class="item-card">
-                    <div class="body">
-                        <div class="title">Version {{ v.numero }} {% if loop.first %}<span class="badge badge-info">Actual</span>{% endif %}</div>
-                        <div class="meta"><span>{{ v.creado_en|fecha(true) }}</span><span>{{ v.subido_por.nombre_completo if v.subido_por else '' }}</span></div>
-                        {% if v.comentario %}<div class="small mt">{{ v.comentario }}</div>{% endif %}
-                    </div>
-                    <a class="btn btn-xs" href="{{ url_for('archivos.descargar', tipo='tesis', item_id=v.id) }}">{{ m.icon('download') }}</a>
-                </div>
-                {% else %}
-                <p class="muted small">Aun no se ha subido el documento.</p>
-                {% endfor %}
+            <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('shield', 'width="17" height="17"') }} Resoluciones</h3></div>
+            <div class="db-card__body small">
+                {% for r in tesis.resoluciones %}
+                <div class="row-between" style="padding:5px 0;border-bottom:1px dashed var(--border);"><span>{{ r.tipo_nombre }}</span><strong>N.° {{ r.numero }} · {{ r.fecha|fecha }}</strong></div>
+                {% else %}<span class="muted">Sin resoluciones registradas.</span>{% endfor %}
             </div>
         </div>
         <div class="db-card">
-            <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('history', 'width="17" height="17"') }} Bitacora</h3></div>
-            <div class="db-card__body" style="max-height:340px;overflow:auto;">
+            <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('history', 'width="17" height="17"') }} Bitácora</h3></div>
+            <div class="db-card__body" style="max-height:320px;overflow:auto;">
                 <ul class="timeline">
                 {% for e in tesis.eventos %}
                     <li>{{ e.descripcion }}<div class="when">{{ e.creado_en|fecha(true) }}{% if e.usuario %} · {{ e.usuario.nombre_completo }}{% endif %}</div></li>
-                {% else %}
-                    <li class="muted">Sin movimientos.</li>
-                {% endfor %}
+                {% else %}<li class="muted">Sin movimientos.</li>{% endfor %}
                 </ul>
             </div>
         </div>

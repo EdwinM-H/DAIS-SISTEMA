@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Mi perfil académico{% endblock %}
+{% block page_title %}Mi perfil académico{% endblock %}
+{% block content %}
+{% call m.page_head('Mi perfil académico', 'Con esta información el DAIS le propone como asesor o dictaminante en tesis afines a su especialidad, respetando su carga y la prelación del reglamento.') %}
+    {% if docente.faltantes_perfil() %}<a class="btn btn-ghost" href="{{ url_for('docente.perfil_academico', despues=1) }}">Completar después</a>{% endif %}
+{% endcall %}
+
+{% if docente.faltantes_perfil() %}
+<div class="callout gold mb">Falta completar: <strong>{{ docente.faltantes_perfil()|join(', ') }}</strong>.</div>
+{% else %}
+<div class="callout green mb">Su perfil está completo. Manténgalo actualizado.</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="stack">
+    {{ m.csrf() }}
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title"><span class="paso-mini">1</span> Líneas y temas de investigación</h3><span class="db-card__tag">hasta {{ max_lineas }} líneas y {{ max_temas }} temas</span></div>
+        <div class="db-card__body">
+            <p class="small muted mb">Marque las líneas en las que tiene experiencia y, dentro de ellas, los temas específicos. Indique cuál es su línea principal.</p>
+            {% set modo = 'docente' %}
+            {% set sel_lineas = docente.lineas|map(attribute='id')|list %}
+            {% set sel_temas = docente.temas|map(attribute='id')|list %}
+            {% set principal_id = docente.linea_principal_id %}
+            {% include "_selector_temas.html" %}
+            <p class="small mt" id="contadorTemas"></p>
+        </div>
+    </div>
+
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title"><span class="paso-mini">2</span> Grado, colegiatura y experiencia</h3><span class="db-card__tag">grado y colegiatura los valida el DAIS</span></div>
+        <div class="db-card__body form-grid-3">
+            <div class="form-group"><label>Grado académico</label>
+                <select name="grado_academico" class="form-control"><option value="">—</option>{% for g in grados %}<option {{ 'selected' if (pendientes.grado_academico.valor_nuevo if pendientes.grado_academico else docente.grado_academico) == g }}>{{ g }}</option>{% endfor %}</select>
+                {% if pendientes.grado_academico %}<div class="form-hint" style="color:var(--warning);">Pendiente de validación</div>{% endif %}</div>
+            {% set col = (pendientes.colegiatura.valor_nuevo if pendientes.colegiatura else (docente.colegiatura_numero or '') ~ '|' ~ (docente.colegiatura_anio or '')).split('|') %}
+            <div class="form-group"><label>N.° de colegiatura (CIP)</label><input name="colegiatura_numero" class="form-control" value="{{ col[0] }}"></div>
+            <div class="form-group"><label>Año de colegiatura</label><input name="colegiatura_anio" type="number" min="1950" max="{{ anio_actual }}" class="form-control" value="{{ col[1] if col|length > 1 else '' }}">
+                {% if pendientes.colegiatura %}<div class="form-hint" style="color:var(--warning);">Pendiente de validación</div>{% endif %}</div>
+            <div class="form-group"><label>Años de experiencia profesional</label><input name="experiencia_anios" type="number" min="0" max="70" class="form-control" value="{{ docente.experiencia_anios if docente.experiencia_anios is not none else '' }}"></div>
+            <div class="form-group full"><label>Sustento (constancia de grado o habilidad, opcional)</label><input type="file" name="sustento" accept=".pdf,.jpg,.jpeg,.png" class="form-control"></div>
+        </div>
+    </div>
+
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title"><span class="paso-mini">3</span> Disponibilidad</h3><span class="db-card__tag">la licencia la valida el DAIS</span></div>
+        <div class="db-card__body form-grid-3">
+            {% set lic = (pendientes.licencia.valor_nuevo if pendientes.licencia else (docente.licencia_desde.isoformat() if docente.licencia_desde else '') ~ '|' ~ (docente.licencia_hasta.isoformat() if docente.licencia_hasta else '')).split('|') %}
+            <div class="form-group"><label>Licencia desde</label><input name="licencia_desde" type="date" class="form-control" value="{{ lic[0] }}"></div>
+            <div class="form-group"><label>Licencia hasta</label><input name="licencia_hasta" type="date" class="form-control" value="{{ lic[1] if lic|length > 1 else '' }}"></div>
+            <div class="form-group"><label>Motivo / comentario</label><input name="motivo" class="form-control"></div>
+            {% if pendientes.licencia %}<p class="small full" style="color:var(--warning);">Licencia pendiente de validación.</p>{% endif %}
+            <p class="small muted full">Durante una licencia validada no será propuesto para nuevas tesis.</p>
+        </div>
+    </div>
+
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('shield', 'width="17" height="17"') }} Datos registrados por el DAIS</h3></div>
+        <div class="db-card__body info-grid">
+            {% for label, valor in [('Categoría', docente.categoria_docente), ('Condición', docente.condicion|capitalize if docente.condicion else None), ('Año de ingreso a la UAC', docente.anio_ingreso), ('Grado validado', docente.grado_academico), ('Colegiatura validada', ((docente.colegiatura_numero or '') ~ ' (' ~ docente.colegiatura_anio ~ ')') if docente.colegiatura_anio else None)] %}
+            <div class="info-item"><span class="info-label">{{ label }}</span><span>{{ valor if valor else '—' }}</span></div>
+            {% endfor %}
+        </div>
+        <p class="small muted card-pad" style="padding-top:0;">Si algún dato oficial no es correcto, comuníquelo al DAIS.</p>
+    </div>
+
+    <div class="form-actions"><button class="btn btn-primary">{{ m.icon('check') }} Guardar mi perfil</button></div>
+</form>
+
+{% if docente.cambios_perfil %}
+<details class="db-card mt">
+    <summary class="db-card__head" style="cursor:pointer;list-style:none;"><h3 class="db-card__title">{{ m.icon('history', 'width="17" height="17"') }} Historial de cambios</h3></summary>
+    <div class="table-container"><table>
+        <thead><tr><th>Fecha</th><th>Dato</th><th>Nuevo valor</th><th>Estado</th></tr></thead>
+        <tbody>{% for c in docente.cambios_perfil[:30] %}
+            <tr><td class="small nowrap">{{ c.creado_en|fecha(true) }}</td><td>{{ c.campo_nombre }}</td><td class="small">{{ c.valor_nuevo|replace('|', ' / ') }}</td>
+                <td>{{ m.estado(c.estado, c.estado_nombre) }}{% if c.estado == 'rechazado' and c.motivo %}<div class="cell-sub">{{ c.motivo }}</div>{% endif %}</td></tr>
+        {% endfor %}</tbody>
+    </table></div>
+</details>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var maxL = {{ max_lineas }}, maxT = {{ max_temas }};
+    function contar() {
+        var temas = document.querySelectorAll('.chk-tema:checked');
+        var lineas = new Set();
+        document.querySelectorAll('.chk-linea:checked').forEach(function (c) { lineas.add(c.value); });
+        temas.forEach(function (t) {
+            lineas.add(t.dataset.linea);
+            var chk = document.querySelector('.chk-linea[value="' + t.dataset.linea + '"]');
+            if (chk) chk.checked = true;
+        });
+        var el = document.getElementById('contadorTemas');
+        el.textContent = lineas.size + ' de ' + maxL + ' líneas · ' + temas.length + ' de ' + maxT + ' temas seleccionados';
+        el.style.color = (lineas.size > maxL || temas.length > maxT) ? 'var(--danger)' : 'var(--text-light)';
+    }
+    document.querySelectorAll('.chk-tema, .chk-linea').forEach(function (c) { c.addEventListener('change', contar); });
+    contar();
+})();
+</script>
+{% endblock %}

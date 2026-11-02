@@ -3,39 +3,49 @@
 {% block title %}Mi tesis{% endblock %}
 {% block page_title %}Mi tesis{% endblock %}
 {% block content %}
-{% set vb, total = tesis.progreso_dictamen %}
+{% set suf, total = tesis.progreso_dictamen %}
 <section class="hero">
     <div style="max-width:760px;">
-        <p style="opacity:.75;margin:0 0 4px;">{{ tesis.codigo }} · {{ tesis.modalidad or 'Tesis' }}</p>
+        <p style="opacity:.75;margin:0 0 4px;">{{ tesis.codigo }} · {{ tesis.modalidad_nombre }}</p>
         <h2 style="font-size:1.2rem;line-height:1.35;">{{ tesis.titulo }}</h2>
-        <p>Asesor: {{ tesis.asesor.docente.nombre_natural if tesis.asesor else 'por asignar' }}</p>
+        <p>Asesor: {{ tesis.asesor.docente.nombre_natural if tesis.asesor else 'por designar' }} · Etapa: <strong>{{ tesis.etapa_nombre }}</strong></p>
     </div>
-    <div class="hero-rank">
-        <div class="rank-circle"><span>Vistos buenos</span><strong>{{ vb }}/{{ total }}</strong><span>dictaminantes</span></div>
-    </div>
+    {% if total %}
+    <div class="hero-rank"><div class="rank-circle"><span>Dictámenes</span><strong>{{ suf }}/{{ total }}</strong><span>suficientes</span></div></div>
+    {% endif %}
 </section>
 
-{% set observados = tesis.dictaminantes|selectattr('estado_revision', 'equalto', 'observado')|list %}
-{% if observados %}
-<div class="callout gold mb">Tiene <strong>{{ observados|length }}</strong> observacion(es) por levantar. Revise los comentarios de sus dictaminantes y suba la version corregida.</div>
-{% elif tesis.estado == 'dictamen_favorable' %}
-<div class="callout green mb">¡Felicitaciones! Su tesis obtuvo todos los vistos buenos. La Direccion programara su sustentacion.</div>
+{% if hay_observaciones %}
+<div class="callout gold mb">Tiene observaciones por levantar. Revise los dictámenes más abajo y suba la versión corregida junto con el documento que explica cómo levantó cada observación
+    (plazo: {{ 10 if tesis.etapa == 'proyecto' else 15 }} días hábiles, Art. {{ 78 if tesis.etapa == 'proyecto' else 103 }}).</div>
+{% elif tesis.etapa == 'inscripcion' %}
+<div class="callout green mb">¡Su proyecto obtuvo dictamen suficiente! Solicite la inscripción del tema de tesis por mesa de partes (Art. 85).</div>
+{% elif tesis.etapa == 'apto' %}
+<div class="callout green mb">¡Su tesis obtuvo dictamen suficiente! Solicite la declaración de apto y la fecha de sustentación (Art. 113-116).</div>
+{% elif tesis.etapa == 'titulado' %}
+<div class="callout green mb">¡Felicitaciones! Sustentó su tesis con nota {{ tesis.nota_sustentacion }} ({{ tesis.calificacion }}).</div>
 {% endif %}
 
-{% if tesis.estado not in ('sustentada', 'anulada', 'sustentacion_programada') %}
+{% if tesis.etapa in ('asesor', 'proyecto', 'desarrollo', 'dictamen', 'observaciones') %}
 <div class="db-card mb">
-    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('upload', 'width="17" height="17"') }} Enviar documento</h3></div>
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('upload', 'width="17" height="17"') }}
+        {% if hay_observaciones %}Enviar versión corregida{% elif tesis.etapa == 'observaciones' %}Enviar versión final{% elif tesis.etapa in ('desarrollo', 'dictamen') or tesis.modalidad == 'suficiencia' %}Enviar la tesis para dictamen{% else %}Enviar el proyecto de tesis{% endif %}</h3></div>
     <div class="db-card__body">
         <form method="post" action="{{ url_for('estudiante.subir_version', tesis_id=tesis.id) }}" enctype="multipart/form-data" class="form-grid">
             {{ m.csrf() }}
-            <div class="form-group"><label class="required">Archivo de la tesis (PDF o Word)</label><input type="file" name="archivo" accept=".pdf,.doc,.docx" class="form-control" required></div>
-            <div class="form-group"><label>Comentario para sus revisores</label><input name="comentario" class="form-control" placeholder="Ej.: se levantaron las observaciones del capitulo 3"></div>
-            <div class="form-actions full"><button class="btn btn-primary">Enviar version {{ (tesis.versiones|length) + 1 }}</button></div>
+            <div class="form-group"><label class="required">Documento (PDF o Word)</label><input type="file" name="archivo" accept=".pdf,.doc,.docx" class="form-control" required>
+                {% if tesis.etapa in ('desarrollo', 'dictamen') and not hay_observaciones %}<div class="form-hint">Incluya el informe de similitud (Turnitin) emitido por su asesor (Art. 91).</div>{% endif %}</div>
+            {% if hay_observaciones %}
+            <div class="form-group"><label class="required">Documento de levantamiento de observaciones</label><input type="file" name="subsanacion" accept=".pdf,.doc,.docx" class="form-control" required>
+                <div class="form-hint">Indique cómo subsanó cada observación y en qué parte del documento puede verificarse.</div></div>
+            {% endif %}
+            <div class="form-group full"><label>Comentario</label><input name="comentario" class="form-control"></div>
+            <div class="form-actions full"><button class="btn btn-primary">Enviar</button></div>
         </form>
     </div>
 </div>
 {% endif %}
 
-{% set mostrar_retiro = False %}
+{% set gestion = False %}
 {% include "_tesis_seguimiento.html" %}
 {% endblock %}

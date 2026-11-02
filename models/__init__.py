@@ -38,7 +38,10 @@ from models.evaluacion import Evaluacion, CriterioNorma, CRITERIOS_NORMA, clasif
 from models.importacion import Importacion  # noqa: E402
 from models.documento import DocumentoGenerado  # noqa: E402
 from models.produccion import Capacitacion, Investigacion, ESTADOS_VALIDACION  # noqa: E402
+from models.perfil import (  # noqa: E402
+    AreaInvestigacion, LineaInvestigacion, TemaInvestigacion, CambioPerfil, Parametro, Feriado,
+)
 from models.tesis import (  # noqa: E402
-    Estudiante, Tesis, TesisMiembro, TesisVersion, TesisEvento,
-    ESTADOS_TESIS, ROLES_TESIS, ESTADOS_REVISION,
+    Estudiante, Tesis, TesisMiembro, TesisVersion, TesisEvento, Dictamen, ResolucionTesis,
+    ESTADOS_TESIS, ROLES_TESIS, ESTADOS_REVISION, ETAPAS_TESIS, RESULTADOS_DICTAMEN,
 )

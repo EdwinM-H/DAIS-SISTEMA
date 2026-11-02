@@ -1,0 +1,39 @@
+{# Selector de lineas y temas del catalogo oficial.
+   Requiere: areas. Variables opcionales: sel_temas (ids), sel_lineas (ids), principal_id, modo ('docente' | 'tesis'), linea_id #}
+{% set sel_temas = sel_temas or [] %}
+{% set sel_lineas = sel_lineas or [] %}
+<div class="catalogo-lineas">
+{% for area in areas %}
+    <div class="cat-area">
+        <div class="cat-area-titulo">{{ area.nombre }}</div>
+        {% for linea in area.lineas %}
+        {% set marcada = linea.id in sel_lineas or (modo == 'tesis' and linea.id == linea_id) %}
+        <details class="cat-linea" {{ 'open' if marcada or linea.temas|selectattr('id', 'in', sel_temas)|list }}>
+            <summary>
+                {% if modo == 'tesis' %}
+                <label><input type="radio" name="linea_id" value="{{ linea.id }}" {{ 'checked' if linea.id == linea_id }}> {{ linea.nombre }}</label>
+                {% else %}
+                <label><input type="checkbox" name="lineas" value="{{ linea.id }}" class="chk-linea" {{ 'checked' if linea.id in sel_lineas }}> {{ linea.nombre }}</label>
+                <label class="principal small" title="Línea principal"><input type="radio" name="linea_principal" value="{{ linea.id }}" {{ 'checked' if linea.id == principal_id }}> principal</label>
+                {% endif %}
+                <span class="ver-temas small">{{ linea.temas|length }} temas ▾</span>
+            </summary>
+            <div class="cat-temas">
+                {% for tema in linea.temas %}
+                <label class="cat-tema"><input type="checkbox" name="temas" value="{{ tema.id }}" class="chk-tema" data-linea="{{ linea.id }}" {{ 'checked' if tema.id in sel_temas }}> {{ tema.nombre }}</label>
+                {% endfor %}
+            </div>
+        </details>
+        {% endfor %}
+    </div>
+{% endfor %}
+</div>
+<script>
+/* Al marcar una linea se despliegan sus temas para elegirlos */
+document.querySelectorAll('.cat-linea > summary input').forEach(function (inp) {
+    inp.addEventListener('click', function (e) { e.stopPropagation(); });
+    inp.addEventListener('change', function () {
+        if (inp.checked && inp.name !== 'linea_principal') inp.closest('details').open = true;
+    });
+});
+</script>

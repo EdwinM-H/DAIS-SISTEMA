@@ -4,6 +4,7 @@ from models import (
     db, Evaluacion, Semestre, DocenteSemestre, Capacitacion, Investigacion, Tesis, Usuario,
 )
 from models.evaluacion import ORDEN_CLASIFICACION
+from models.tesis import ETAPAS_CERRADAS, ETAPAS_TESIS
 from services.evaluacion_service import calcular_ranking, promedios_semestre
 
 RANGOS_NOTA = [(0, 6, "0 - 6"), (6, 7, "6 - 7"), (7, 8, "7 - 8"), (8, 9, "8 - 9"), (9, 10.0001, "9 - 10")]
@@ -34,10 +35,10 @@ def get_dashboard_stats(semestre_id=None):
         Capacitacion.query.filter_by(estado_validacion="pendiente").count()
         + Investigacion.query.filter_by(estado_validacion="pendiente").count()
     )
-    stats["tesis_activas"] = Tesis.query.filter(Tesis.estado.notin_(("sustentada", "anulada"))).count()
+    stats["tesis_activas"] = Tesis.query.filter(Tesis.etapa.notin_(ETAPAS_CERRADAS)).count()
     stats["tesis_por_estado"] = [
-        {"estado": e, "cantidad": c}
-        for e, c in db.session.query(Tesis.estado, func.count(Tesis.id)).group_by(Tesis.estado).all()
+        {"estado": ETAPAS_TESIS.get(e, e), "cantidad": c}
+        for e, c in db.session.query(Tesis.etapa, func.count(Tesis.id)).group_by(Tesis.etapa).all()
     ]
     stats["docentes_con_cuenta"] = Usuario.query.filter(Usuario.rol == "docente", Usuario.activo.is_(True)).count()
 

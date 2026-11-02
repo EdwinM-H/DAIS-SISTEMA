@@ -2,19 +2,23 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Error {{ code }} - DAIS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error {{ code }} · DAIS</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
-    <div style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:var(--bg);">
-        <div style="text-align:center;">
-            <h1 style="font-size:4rem;color:var(--primary);">{{ code }}</h1>
-            <p style="font-size:1.1rem;color:var(--text-light);">{{ message }}</p>
-            <div style="margin-top:20px;">
+    <div style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:var(--bg);padding:16px;">
+        <div class="db-card" style="max-width:520px;width:100%;text-align:center;padding:40px 28px;">
+            <h1 style="font-size:3.4rem;color:var(--primary);line-height:1;">{{ code }}</h1>
+            <p style="font-size:1.02rem;color:var(--text-light);margin-top:12px;">{{ message }}</p>
+            <div class="row" style="justify-content:center;margin-top:22px;">
                 {% if current_user.is_authenticated %}
-                <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">Ir al Dashboard</a>
+                    {% if code != 409 %}<a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">Ir al inicio</a>{% endif %}
+                    <a href="javascript:history.back()" class="btn">Volver</a>
+                    <a href="{{ url_for('auth.logout') }}" class="btn">Cerrar sesión</a>
                 {% else %}
-                <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Iniciar Sesion</a>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Iniciar sesión</a>
                 {% endif %}
             </div>
         </div>

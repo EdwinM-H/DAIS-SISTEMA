@@ -17,10 +17,11 @@ login_manager = LoginManager()
 ENDPOINTS_LIBRES = {"auth.login", "auth.logout", "auth.cambiar_password", "static"}
 
 
-def create_app(config_name=None):
+def create_app(config_name=None, **overrides):
     config_name = config_name or os.getenv("FLASK_ENV", "development")
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+    app.config.update(overrides)
 
     if config_name == "production" and app.config["SECRET_KEY"] == CLAVE_DESARROLLO:
         raise RuntimeError("SECRET_KEY debe configurarse en produccion.")
@@ -93,6 +94,8 @@ def _registrar_hooks(app):
             "anio_actual": datetime.now().year,
             "nav_pendientes_produccion": 0,
             "nav_tesis_pendientes": 0,
+            "nav_validaciones_perfil": 0,
+            "perfil_faltante": [],
         }
         if current_user.is_authenticated:
             datos.update(_contadores_menu())
@@ -100,21 +103,26 @@ def _registrar_hooks(app):
 
     def _contadores_menu():
         """Insignias del menu lateral: registros por validar y dictamenes pendientes."""
-        from models import Capacitacion, Investigacion, Tesis, TesisMiembro
+        from models import Capacitacion, Investigacion, Tesis, TesisMiembro, Dictamen, CambioPerfil
+        from models.tesis import ETAPAS_CERRADAS
 
         if current_user.es_gestion:
             return {"nav_pendientes_produccion":
                     Capacitacion.query.filter_by(estado_validacion="pendiente").count()
-                    + Investigacion.query.filter_by(estado_validacion="pendiente").count()}
+                    + Investigacion.query.filter_by(estado_validacion="pendiente").count(),
+                    "nav_validaciones_perfil": CambioPerfil.query.filter_by(estado="pendiente").count()}
         if current_user.es_docente:
-            return {"nav_tesis_pendientes": (
-                TesisMiembro.query.join(Tesis)
-                .filter(TesisMiembro.docente_id == current_user.docente_id,
-                        TesisMiembro.rol == "dictaminante",
-                        TesisMiembro.estado_revision == "pendiente",
-                        Tesis.estado.notin_(("sustentada", "anulada")),
-                        Tesis.versiones.any())
-                .count())}
+            abiertas = Tesis.etapa.notin_(ETAPAS_CERRADAS)
+            designaciones = (TesisMiembro.query.join(Tesis)
+                             .filter(TesisMiembro.docente_id == current_user.docente_id,
+                                     TesisMiembro.estado_designacion == "propuesto", abiertas).count())
+            dictamenes = (Dictamen.query.join(TesisMiembro).join(Tesis, Dictamen.tesis_id == Tesis.id)
+                          .filter(TesisMiembro.docente_id == current_user.docente_id,
+                                  TesisMiembro.estado_designacion == "aceptado",
+                                  Dictamen.resultado.is_(None), abiertas).count())
+            docente = current_user.docente
+            return {"nav_tesis_pendientes": designaciones + dictamenes,
+                    "perfil_faltante": docente.faltantes_perfil() if docente else []}
         return {}
 
     @app.after_request

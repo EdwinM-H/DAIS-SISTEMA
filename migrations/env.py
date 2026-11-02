@@ -97,6 +97,13 @@ def run_migrations_online():
     connectable = get_engine()
 
     with connectable.connect() as connection:
+        if connection.dialect.name == "sqlite":
+            # IMPORTANTE: en SQLite los cambios de tabla (modo batch) copian la tabla, borran la
+            # original y la renombran. Con las claves foraneas activas, ese borrado dispara
+            # ON DELETE CASCADE / SET NULL y elimina datos relacionados. Se desactivan durante
+            # la migracion (debe hacerse fuera de una transaccion).
+            connection.exec_driver_sql("PRAGMA foreign_keys=OFF")
+            connection.commit()
         context.configure(
             connection=connection,
             target_metadata=get_metadata(),
@@ -105,6 +112,11 @@ def run_migrations_online():
 
         with context.begin_transaction():
             context.run_migrations()
+
+        if connection.dialect.name == "sqlite":
+            # La conexion vuelve al pool: se reactiva la integridad referencial
+            connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+            connection.commit()
 
 
 if context.is_offline_mode():

@@ -23,7 +23,7 @@ def _columnas(tipo, escala):
     campo = tipo_criterio(tipo)
     if tipo == "docentes":
         return ["CODIGO", "APELLIDOS", "NOMBRES", "DNI", "CORREO", "MODALIDAD", "GRADO ACADEMICO",
-                "CATEGORIA", "AÑO DE INGRESO"], None
+                "CATEGORIA", "CONDICION", "AÑO DE INGRESO", "AÑO DE COLEGIATURA", "AÑOS DE EXPERIENCIA"], None
     if tipo == "encuesta":
         return ["CODIGO", "APELLIDOS Y NOMBRES", "ENCUESTA SEMESTRE I (/10)", "ENCUESTA SEMESTRE II (/10)"], (0, 10)
     if tipo == "autoevaluacion":
@@ -60,7 +60,9 @@ def generar_plantilla(tipo, semestre, escala=None):
     for d in docentes:
         if tipo == "docentes":
             ws.append([d.codigo, d.apellidos.upper(), d.nombres.upper(), d.dni or "", d.correo_institucional or "",
-                       modalidades.get(d.id) or "", d.grado_academico or "", d.categoria_docente or "", d.anio_ingreso or ""])
+                       modalidades.get(d.id) or "", d.grado_academico or "", d.categoria_docente or "",
+                       (d.condicion or "").capitalize(), d.anio_ingreso or "", d.colegiatura_anio or "",
+                       d.experiencia_anios if d.experiencia_anios is not None else ""])
         else:
             ws.append([d.codigo, f"{d.apellidos} {d.nombres}".upper()] + [None] * (len(cols) - 2))
 

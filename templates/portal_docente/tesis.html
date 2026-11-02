@@ -3,26 +3,70 @@
 {% block title %}Mis tesis{% endblock %}
 {% block page_title %}Mis tesis{% endblock %}
 {% block content %}
-{{ m.page_head('Tesis en las que participo', 'Tesis donde fue designado(a) como asesor, dictaminante o jurado.') }}
+{{ m.page_head('Mis tesis', 'Designaciones como asesor, dictaminante, dirimente o jurado.') }}
+
+{% if pendientes %}
+<div class="db-card mb paso-final">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('bell', 'width="17" height="17"') }} Requieren su atención ({{ pendientes|length }})</h3></div>
+    <div class="db-card__body stack" style="gap:10px;">
+    {% for p in pendientes %}
+        {% set mb = p.miembro %}
+        {% if p.tipo == 'designacion' %}
+        <div class="accion-fila">
+            <div class="row-between">
+                <div><strong>Designación como {{ mb.rol_nombre|lower }}</strong> · {{ mb.tesis.codigo }}
+                    <div class="small">{{ mb.tesis.titulo }}</div>
+                    <div class="small muted">Tesista(s): {{ mb.tesis.estudiantes_texto }} · Designado el {{ mb.fecha_designacion|fecha }}</div></div>
+                <div class="row">
+                    <form method="post" action="{{ url_for('docente.responder_designacion', miembro_id=mb.id) }}">{{ m.csrf() }}<input type="hidden" name="respuesta" value="acepto"><button class="btn btn-sm btn-success">{{ m.icon('check') }} Acepto</button></form>
+                    <button class="btn btn-sm btn-danger" data-dialog="dlgImpedimento" data-action="{{ url_for('docente.responder_designacion', miembro_id=mb.id) }}">Tengo un impedimento</button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        {% set d = p.dictamen %}
+        <div class="accion-fila row-between">
+            <div><strong>Dictamen pendiente</strong> · {{ mb.tesis.codigo }} · {{ 'Proyecto' if d.etapa == 'proyecto' else 'Tesis' }}, ronda {{ d.ronda }}
+                <div class="small">{{ mb.tesis.titulo }}</div>
+                <div class="small"><span class="semaforo {{ semaforo(d.inicio, d.limite) }}"></span>Vence el {{ d.limite|fecha }}</div></div>
+            <a class="btn btn-sm btn-primary" href="{{ url_for('docente.tesis_detalle', tesis_id=mb.tesis_id) }}">Revisar y dictaminar</a>
+        </div>
+        {% endif %}
+    {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <div class="db-card">
     <div class="table-container">
         <table>
-            <thead><tr><th>Codigo</th><th>Titulo / tesistas</th><th>Mi rol</th><th>Mi revision</th><th>Estado de la tesis</th><th></th></tr></thead>
+            <thead><tr><th>Código</th><th>Título / tesistas</th><th>Mi rol</th><th>Designación</th><th>Etapa de la tesis</th><th></th></tr></thead>
             <tbody>
             {% for mb in roles %}
                 <tr>
                     <td class="strong nowrap">{{ mb.tesis.codigo }}</td>
                     <td><div class="cell-title truncate" title="{{ mb.tesis.titulo }}">{{ mb.tesis.titulo }}</div><div class="cell-sub">{{ mb.tesis.estudiantes_texto }}</div></td>
-                    <td><span class="badge badge-outline">{{ mb.rol_nombre }}</span></td>
-                    <td>{% if mb.emite_dictamen %}{{ m.estado(mb.estado_revision, mb.estado_nombre) }}{% else %}<span class="muted small">-</span>{% endif %}</td>
-                    <td>{{ m.estado(mb.tesis.estado, mb.tesis.estado_nombre) }}</td>
-                    <td><a class="btn btn-xs {{ 'btn-primary' if mb.emite_dictamen and mb.estado_revision == 'pendiente' and mb.tesis.versiones }}" href="{{ url_for('docente.tesis_detalle', tesis_id=mb.tesis.id) }}">{{ 'Revisar' if mb.emite_dictamen and mb.estado_revision == 'pendiente' else 'Ver' }}</a></td>
+                    <td><span class="badge badge-outline">{{ mb.rol_nombre }}</span>{% if mb.orden_prelacion and mb.activo and mb.rol == 'dictaminante' %}<div class="cell-sub">Prelación {{ mb.orden_prelacion }}</div>{% endif %}</td>
+                    <td>{{ m.estado(mb.estado_designacion, mb.estado_nombre) }}</td>
+                    <td>{{ m.estado(mb.tesis.etapa, mb.tesis.etapa_nombre) }}</td>
+                    <td>{% if mb.estado_designacion in ('propuesto', 'aceptado') %}<a class="btn btn-xs" href="{{ url_for('docente.tesis_detalle', tesis_id=mb.tesis.id) }}">Ver</a>{% endif %}</td>
                 </tr>
             {% else %}
-                <tr><td colspan="6">{{ m.empty('No tiene tesis asignadas', 'Cuando la Direccion lo designe, la tesis aparecera aqui y recibira una notificacion.', 'book') }}</td></tr>
+                <tr><td colspan="6">{{ m.empty('No tiene tesis asignadas', 'Cuando el DAIS lo designe, recibirá una notificación y la tesis aparecerá aquí.', 'book') }}</td></tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
+
+<dialog class="dlg" id="dlgImpedimento">
+    <form method="post">{{ m.csrf() }}<input type="hidden" name="respuesta" value="impedimento">
+        <div class="dlg-head"><h3>Declarar impedimento</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+        <div class="dlg-body">
+            <p class="small muted mb">Por ejemplo: parentesco con el tesista (Art. 73, 95), licencia, carga excesiva u otro motivo justificado. El DAIS propondrá automáticamente a otro docente.</p>
+            <div class="form-group"><label class="required">Motivo</label><textarea name="motivo" class="form-control" required></textarea></div>
+        </div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-danger">Registrar impedimento</button></div>
+    </form>
+</dialog>
 {% endblock %}

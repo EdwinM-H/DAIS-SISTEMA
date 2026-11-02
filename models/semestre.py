@@ -18,6 +18,9 @@ class Semestre(db.Model):
     # Si luego se importan datos nuevos, resultados_vigentes pasa a False hasta recalcular.
     resultados_vigentes = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     fecha_calculo = db.Column(db.DateTime, nullable=True)
+    # Periodo lectivo: los plazos de tesis solo corren dentro de estas fechas (Art. 79, 104)
+    fecha_inicio = db.Column(db.Date, nullable=True)
+    fecha_fin = db.Column(db.Date, nullable=True)
     creado_en = db.Column(db.DateTime, nullable=False, server_default=db.func.now())
 
     evaluaciones = db.relationship("Evaluacion", back_populates="semestre", cascade="all, delete-orphan")

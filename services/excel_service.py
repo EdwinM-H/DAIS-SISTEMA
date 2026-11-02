@@ -18,7 +18,7 @@ from models import (
     db, Docente, DocenteSemestre, Evaluacion, Importacion, Semestre, CriterioNorma,
     Capacitacion, Investigacion, CRITERIOS_NORMA, clasificar,
 )
-from models.docente import titulo
+from models.docente import titulo, CATEGORIAS
 
 NOTA_MAX = 10.0
 PARTICULAS = {"DE", "DEL", "LA", "LAS", "LOS", "Y", "SAN", "VON", "VAN", "MC"}
@@ -691,8 +691,26 @@ CAMPOS_IDENTIDAD = [
 ]
 CAMPOS_DOCENTE = [
     ("modalidad", "Modalidad"), ("dni", "DNI"), ("correo", "Correo"), ("especialidad", "Especialidad"),
-    ("grado", "Grado academico"), ("categoria", "Categoria"), ("anio_ingreso", "Anio de ingreso"),
+    ("grado", "Grado academico"), ("categoria", "Categoria (Principal/Asociado/Auxiliar/Contratado)"),
+    ("condicion", "Condicion (Ordinario/Contratado)"), ("anio_ingreso", "Anio de ingreso a la UAC"),
+    ("colegiatura_anio", "Anio de colegiatura"), ("experiencia", "Anios de experiencia profesional"),
 ]
+CAMPOS_EXTRA_DOCENTE = ("dni", "correo", "especialidad", "grado", "categoria", "modalidad", "condicion")
+PREFIJOS_GRADO = {
+    "Doctor": ("doctor", "dr", "phd"),
+    "Maestro": ("maestr", "magist", "mg", "msc", "master"),
+    "Titulado": ("titul", "ing", "lic"),
+    "Bachiller": ("bachill",),
+}
+
+
+def normalizar_grado(texto):
+    """'Mg. en Sistemas' -> 'Maestro'; 'Dr.' -> 'Doctor'. None si no se reconoce."""
+    k = clave(texto)
+    for grado, prefijos in PREFIJOS_GRADO.items():
+        if k.startswith(prefijos):
+            return grado
+    return None
 
 
 def campos_mapeo(tipo):
@@ -715,7 +733,8 @@ def mapeo_automatico(cab, tipo, grupos=None):
 def _mapeo(cab, tipo, grupos=None, manual=None):
     if manual:
         m = {k: None for k in ("nombre", "nombres", "apellidos", "codigo", "dni", "correo", "especialidad",
-                               "grado", "categoria", "modalidad", "anio_ingreso", "nota", *CAMPOS_CRITERIO)}
+                               "grado", "categoria", "modalidad", "anio_ingreso", "condicion", "colegiatura_anio",
+                               "experiencia", "nota", *CAMPOS_CRITERIO)}
         for k, v in manual.items():
             if k == "valores":
                 m["valores"] = [int(x) for x in v if str(x).isdigit() and int(x) < len(cab)]
@@ -734,8 +753,11 @@ def _mapeo(cab, tipo, grupos=None, manual=None):
         "especialidad": buscar_columna(cab, "especialidad"),
         "grado": buscar_columna(cab, "grado academico", "grado"),
         "categoria": buscar_columna(cab, "categoria"),
-        "modalidad": buscar_columna(cab, "modalidad", "condicion"),
+        "modalidad": buscar_columna(cab, "modalidad"),
+        "condicion": buscar_columna(cab, "condicion"),
         "anio_ingreso": buscar_columna(cab, "ano de ingreso", "anio ingreso", "ingreso"),
+        "colegiatura_anio": buscar_columna(cab, "ano de colegiatura", "anio colegiatura", "colegiatura"),
+        "experiencia": buscar_columna(cab, "anos de experiencia", "experiencia"),
         "valores": [],
     }
     if tipo in ("encuesta", "autoevaluacion"):
@@ -843,8 +865,10 @@ def analizar_tabla(ruta, tipo, opciones=None):
             out["registros"].append({
                 "fila": n, "nombre": nombre, "nombres": nombres, "apellidos": apellidos, "codigo": codigo,
                 "docente": _buscar_docente(codigo, nombre),
-                "extra": {k: texto_celda(_valor(fila, m[k])) for k in ("dni", "correo", "especialidad", "grado", "categoria", "modalidad")},
+                "extra": {k: texto_celda(_valor(fila, m.get(k))) for k in CAMPOS_EXTRA_DOCENTE},
                 "anio_ingreso": a_numero(_valor(fila, m["anio_ingreso"])),
+                "colegiatura_anio": a_numero(_valor(fila, m.get("colegiatura_anio"))),
+                "experiencia": a_numero(_valor(fila, m.get("experiencia"))),
             })
             continue
 
@@ -921,10 +945,25 @@ def importar_tabla(ruta, tipo, semestre_id, usuario_id, opciones=None):
             if nuevo:
                 docente, _ = _obtener_o_crear_docente(reg["nombre"], res, reg["nombres"], reg["apellidos"], reg["codigo"])
             extra = reg["extra"]
-            for campo, k in (("correo_institucional", "correo"), ("especialidad", "especialidad"),
-                             ("grado_academico", "grado"), ("categoria_docente", "categoria")):
+            for campo, k in (("correo_institucional", "correo"), ("especialidad", "especialidad")):
                 if extra.get(k):
                     setattr(docente, campo, extra[k])
+            # Datos de prelacion: se normalizan al catalogo (Principal/Asociado/... y Ordinario/Contratado)
+            categoria = titulo(extra.get("categoria", "")).split(" ")[0] if extra.get("categoria") else ""
+            if categoria in CATEGORIAS:
+                docente.categoria_docente = categoria
+            grado = normalizar_grado(extra.get("grado"))
+            if grado:
+                docente.grado_academico = grado
+            condicion = clave(extra.get("condicion", ""))
+            if condicion.startswith(("ordinario", "nombrado")):
+                docente.condicion = "ordinario"
+            elif condicion.startswith("contratado"):
+                docente.condicion = "contratado"
+            if reg.get("colegiatura_anio") and 1950 <= reg["colegiatura_anio"] <= 2100:
+                docente.colegiatura_anio = int(reg["colegiatura_anio"])
+            if reg.get("experiencia") is not None and 0 <= reg["experiencia"] <= 70:
+                docente.experiencia_anios = int(reg["experiencia"])
             if extra.get("dni"):
                 if Docente.query.filter(Docente.dni == extra["dni"], Docente.id != docente.id).first():
                     res["advertencias"].append(f"{docente.nombre_completo}: el DNI {extra['dni']} ya pertenece a otro docente.")

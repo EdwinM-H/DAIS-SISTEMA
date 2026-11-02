@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Configuración de tesis{% endblock %}
+{% block page_title %}Gestión de tesis{% endblock %}
+{% block content %}
+{{ m.page_head('Configuración del proceso de tesis', 'Valores del Reglamento Marco (Res. 256-CU-2024-UAC). Ajústelos si el reglamento específico de la Facultad establece otros.', [('Gestión de tesis', url_for('tesis.index')), ('Configuración', None)]) }}
+<div class="grid grid-main">
+    <form method="post" class="db-card">
+        {{ m.csrf() }}<input type="hidden" name="seccion" value="parametros">
+        <div class="db-card__head"><h3 class="db-card__title">Plazos, cupos y número de dictaminantes</h3></div>
+        <div class="table-container">
+            <table>
+                <thead><tr><th>Parámetro</th><th>Base</th><th class="num" style="width:120px;">Valor</th></tr></thead>
+                <tbody>
+                {% for p in parametros %}
+                    <tr><td>{{ p.descripcion }}{% if p.valor != p.defecto %} <span class="badge badge-gold">modificado</span>{% endif %}</td><td class="small muted">{{ p.articulo }}</td>
+                        <td><input type="number" name="{{ p.clave }}" value="{{ p.valor }}" min="0" max="365" class="form-control" style="text-align:right;"></td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="form-actions card-pad"><button class="btn btn-primary">Guardar parámetros</button></div>
+    </form>
+    <div class="stack">
+        <div class="db-card">
+            <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('calendar', 'width="17" height="17"') }} Periodos lectivos</h3></div>
+            <div class="db-card__body small">
+                <p class="muted mb">Los plazos solo corren dentro del semestre; las vacaciones no cuentan (Art. 79, 104).</p>
+                {% for s in semestres %}
+                <form method="post" class="row" style="margin-bottom:8px;">{{ m.csrf() }}<input type="hidden" name="seccion" value="semestre"><input type="hidden" name="semestre_id" value="{{ s.id }}">
+                    <strong style="width:70px;">{{ s.codigo }}</strong>
+                    <input type="date" name="fecha_inicio" value="{{ s.fecha_inicio.isoformat() if s.fecha_inicio else '' }}" class="form-control" style="max-width:150px;">
+                    <input type="date" name="fecha_fin" value="{{ s.fecha_fin.isoformat() if s.fecha_fin else '' }}" class="form-control" style="max-width:150px;">
+                    <button class="btn btn-xs">Guardar</button>
+                </form>
+                {% else %}<p class="muted">No hay semestres.</p>{% endfor %}
+            </div>
+        </div>
+        <div class="db-card">
+            <div class="db-card__head"><h3 class="db-card__title">Feriados</h3></div>
+            <div class="db-card__body small">
+                <form method="post" class="row mb">{{ m.csrf() }}<input type="hidden" name="seccion" value="feriado">
+                    <input type="date" name="fecha" class="form-control" style="max-width:150px;" required>
+                    <input name="descripcion" class="form-control" placeholder="Descripción" style="max-width:180px;">
+                    <button class="btn btn-xs btn-primary">Agregar</button>
+                </form>
+                {% for f in feriados %}
+                <form method="post" class="row-between" style="padding:4px 0;border-bottom:1px dashed var(--border);">{{ m.csrf() }}<input type="hidden" name="seccion" value="quitar_feriado"><input type="hidden" name="feriado_id" value="{{ f.id }}">
+                    <span>{{ f.fecha|fecha }} · {{ f.descripcion or '' }}</span><button class="btn btn-xs btn-ghost">Quitar</button></form>
+                {% else %}<p class="muted">Sin feriados registrados.</p>{% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

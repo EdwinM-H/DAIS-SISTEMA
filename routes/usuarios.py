@@ -23,7 +23,9 @@ def index():
         query = query.filter(db.or_(Usuario.username.ilike(f"%{q}%"), Usuario.nombre_completo.ilike(f"%{q}%")))
     usuarios = query.order_by(Usuario.rol, Usuario.nombre_completo).all()
     sin_cuenta = Docente.query.filter(Docente.estado == "activo", ~Docente.usuario.has()).count()
-    return render_template("usuarios/index.html", usuarios=usuarios, roles=ROLES, rol=rol, q=q, sin_cuenta=sin_cuenta)
+    docentes_libres = Docente.query.filter(~Docente.usuario.has()).order_by(Docente.apellidos).all()
+    return render_template("usuarios/index.html", usuarios=usuarios, roles=ROLES, rol=rol, q=q, sin_cuenta=sin_cuenta,
+                           docentes_libres=docentes_libres)
 
 
 @usuarios_bp.route("/crear", methods=["GET", "POST"])
@@ -76,6 +78,23 @@ def restablecer(usuario_id):
     return render_template("usuarios/credenciales.html", titulo="Contrasena restablecida", credenciales=[{
         "nombre": u.nombre_completo, "codigo": u.rol_nombre, "username": u.username, "password": password,
     }])
+
+
+@usuarios_bp.route("/<int:usuario_id>/vincular", methods=["POST"])
+@direccion_required
+def vincular(usuario_id):
+    """Vincula una cuenta de docente con su ficha (repara cuentas que quedaron sin vinculo)."""
+    u = db.get_or_404(Usuario, usuario_id)
+    docente = db.session.get(Docente, request.form.get("docente_id", type=int) or 0)
+    if u.rol != "docente" or not docente:
+        flash("Seleccione un docente válido.", "danger")
+    elif docente.usuario and docente.usuario.id != u.id:
+        flash(f"{docente.nombre_completo} ya tiene la cuenta {docente.usuario.username}.", "warning")
+    else:
+        u.docente_id = docente.id
+        db.session.commit()
+        flash(f"Cuenta {u.username} vinculada a {docente.nombre_completo}.", "success")
+    return redirect(url_for("usuarios.index"))
 
 
 @usuarios_bp.route("/generar-docentes", methods=["POST"])

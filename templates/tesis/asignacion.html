@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Asignación automática{% endblock %}
+{% block page_title %}Gestión de tesis{% endblock %}
+{% block content %}
+{{ m.page_head('Asignación automática', 'Tesis con designaciones pendientes y la propuesta del sistema. Revise y aplique; cada docente deberá aceptar o declarar impedimento.', [('Gestión de tesis', url_for('tesis.index')), ('Asignación automática', None)]) }}
+{% if propuestas %}
+<form method="post" data-confirm="Se designará a los docentes propuestos en las tesis marcadas. ¿Continuar?">
+    {{ m.csrf() }}
+    <div class="db-card">
+        <div class="table-container">
+            <table>
+                <thead><tr><th><input type="checkbox" checked onclick="document.querySelectorAll('.chk-t').forEach(c => c.checked = this.checked)"></th><th>Tesis</th><th>Rol</th><th>Propuesta (en orden de prelación)</th></tr></thead>
+                <tbody>
+                {% for p in propuestas %}
+                    {% for rol, cands in p.filas %}
+                    <tr>
+                        {% if loop.first %}
+                        <td rowspan="{{ p.filas|length }}"><input type="checkbox" name="tesis_id" value="{{ p.tesis.id }}" class="chk-t" checked></td>
+                        <td rowspan="{{ p.filas|length }}"><a class="cell-title" href="{{ url_for('tesis.detalle', tesis_id=p.tesis.id) }}" style="text-decoration:none;">{{ p.tesis.codigo }}</a>
+                            <div class="cell-sub truncate">{{ p.tesis.titulo }}</div><div class="cell-sub">{{ p.tesis.linea.nombre if p.tesis.linea else 'Sin línea' }}</div></td>
+                        {% endif %}
+                        <td><span class="badge badge-outline">{{ roles[rol] }}</span></td>
+                        <td class="small">{% for c in cands %}<div><strong>{{ c.docente.nombre_completo }}</strong> · {{ c.puntaje|nota(0) }} pts · <span class="muted">{{ c.motivos[:2]|join(' · ') }}</span></div>{% else %}<span style="color:var(--danger);">Sin candidatos disponibles</span>{% endfor %}</td>
+                    </tr>
+                    {% endfor %}
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <p class="small muted mt">La propuesta se recalcula al aplicar, tesis por tesis, para repartir la carga entre los docentes.</p>
+    <div class="form-actions"><button class="btn btn-primary">{{ m.icon('check') }} Aplicar designaciones</button></div>
+</form>
+{% else %}
+<div class="db-card">{{ m.empty('No hay designaciones pendientes', 'Todas las tesis activas tienen asesor y dictaminantes completos.', 'check') }}</div>
+{% endif %}
+{% endblock %}

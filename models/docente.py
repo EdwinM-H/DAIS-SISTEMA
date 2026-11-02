@@ -6,6 +6,11 @@ from models import db, TimestampMixin
 ESCUELA_DEFAULT = "Escuela Profesional de Ingenieria de Sistemas"
 ESTADOS_DOCENTE = ("activo", "inactivo")
 
+CATEGORIAS = ["Principal", "Asociado", "Auxiliar", "Contratado"]
+RANGO_CATEGORIA = {"principal": 0, "asociado": 1, "auxiliar": 2, "contratado": 3}
+GRADOS = ["Bachiller", "Titulado", "Maestro", "Doctor"]
+CONDICIONES = {"ordinario": "Ordinario", "contratado": "Contratado"}
+
 
 def _sin_tildes(texto):
     texto = unicodedata.normalize("NFKD", str(texto or ""))
@@ -47,6 +52,26 @@ class Docente(db.Model, TimestampMixin):
     anio_ingreso = db.Column(db.Integer, nullable=True)
     estado = db.Column(db.String(10), nullable=False, default="activo")
 
+    # ---- Perfil academico (prelacion y afinidad para tesis) ----
+    # Datos oficiales: los registra el DAIS
+    condicion = db.Column(db.String(12), nullable=True)            # ordinario | contratado
+    es_autoridad = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    cargo_autoridad = db.Column(db.String(100), nullable=True)
+    # Datos declarados por el docente (colegiatura, grado y licencia requieren validacion)
+    colegiatura_numero = db.Column(db.String(30), nullable=True)
+    colegiatura_anio = db.Column(db.Integer, nullable=True)
+    experiencia_anios = db.Column(db.Integer, nullable=True)
+    licencia_desde = db.Column(db.Date, nullable=True)
+    licencia_hasta = db.Column(db.Date, nullable=True)
+    linea_principal_id = db.Column(db.Integer, db.ForeignKey("lineas_investigacion.id", ondelete="SET NULL"), nullable=True)
+    perfil_actualizado_en = db.Column(db.DateTime, nullable=True)
+
+    linea_principal = db.relationship("LineaInvestigacion", foreign_keys=[linea_principal_id])
+    lineas = db.relationship("LineaInvestigacion", secondary="docente_lineas", order_by="LineaInvestigacion.id")
+    temas = db.relationship("TemaInvestigacion", secondary="docente_temas", order_by="TemaInvestigacion.id")
+    cambios_perfil = db.relationship("CambioPerfil", back_populates="docente", cascade="all, delete-orphan",
+                                     order_by="CambioPerfil.id.desc()")
+
     usuario = db.relationship("Usuario", back_populates="docente", uselist=False)
     evaluaciones = db.relationship("Evaluacion", back_populates="docente", cascade="all, delete-orphan")
     criterios_norma = db.relationship("CriterioNorma", back_populates="docente", cascade="all, delete-orphan")
@@ -66,7 +91,62 @@ class Docente(db.Model, TimestampMixin):
         db.CheckConstraint(
             "anio_ingreso IS NULL OR (anio_ingreso BETWEEN 1950 AND 2100)", name="anio_ingreso_valido"
         ),
+        db.CheckConstraint("condicion IS NULL OR condicion IN ('ordinario','contratado')", name="condicion_valida"),
+        db.CheckConstraint("colegiatura_anio IS NULL OR (colegiatura_anio BETWEEN 1950 AND 2100)", name="colegiatura_valida"),
+        db.CheckConstraint("experiencia_anios IS NULL OR (experiencia_anios BETWEEN 0 AND 70)", name="experiencia_valida"),
+        db.CheckConstraint("licencia_hasta IS NULL OR licencia_desde IS NULL OR licencia_hasta >= licencia_desde",
+                           name="licencia_valida"),
     )
+
+    # ---- Perfil academico ----
+    def de_licencia(self, fecha=None):
+        fecha = fecha or date.today()
+        if not self.licencia_desde:
+            return False
+        return self.licencia_desde <= fecha and (self.licencia_hasta is None or fecha <= self.licencia_hasta)
+
+    @property
+    def disponible(self):
+        return self.estado == "activo" and not self.es_autoridad and not self.de_licencia()
+
+    def faltantes_perfil(self):
+        """Datos que faltan para la prelacion y la afinidad (lo usa el aviso del portal)."""
+        faltan = []
+        if not self.temas:
+            faltan.append("líneas y temas de investigación")
+        if not self.grado_academico:
+            faltan.append("grado académico")
+        if not self.colegiatura_anio:
+            faltan.append("año de colegiatura")
+        if self.experiencia_anios is None:
+            faltan.append("años de experiencia profesional")
+        return faltan
+
+    @property
+    def perfil_completo(self):
+        return not self.faltantes_perfil()
+
+    @property
+    def clave_prelacion(self):
+        """Orden del Art. 71/97: categoria, antiguedad en la UAC, colegiatura, experiencia.
+
+        Valores faltantes van al final dentro de su grupo.
+        """
+        rango = RANGO_CATEGORIA.get((self.categoria_docente or "").strip().lower(), 9)
+        ingreso = self.anio_ingreso or 9999
+        colegiatura = self.colegiatura_anio or 9999
+        experiencia = -(self.experiencia_anios or 0)
+        return (rango, ingreso, colegiatura, experiencia, self.apellidos)
+
+    def faltantes_prelacion(self):
+        faltan = []
+        if (self.categoria_docente or "").strip().lower() not in RANGO_CATEGORIA:
+            faltan.append("categoría")
+        if not self.anio_ingreso:
+            faltan.append("año de ingreso a la UAC")
+        if not self.colegiatura_anio:
+            faltan.append("año de colegiatura")
+        return faltan
 
     @property
     def nombre_completo(self):

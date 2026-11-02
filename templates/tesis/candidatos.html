@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Candidatos{% endblock %}
+{% block page_title %}Gestión de tesis{% endblock %}
+{% block content %}
+{{ m.page_head('Candidatos para ' ~ rol_nombre|lower, tesis.codigo ~ ' · ' ~ tesis.titulo, [('Gestión de tesis', url_for('tesis.index')), (tesis.codigo, url_for('tesis.detalle', tesis_id=tesis.id)), ('Candidatos', None)]) }}
+<div class="callout mb">
+    Puntaje sobre 100: afinidad temática (tema {{ puntos.tema }} · línea {{ puntos.linea }} · área {{ puntos.area }}), publicaciones relacionadas (hasta {{ puntos.publicaciones }}),
+    menor carga (hasta {{ puntos.carga }}) y cumplimiento de plazos (hasta {{ puntos.cumplimiento }}). Entre los elegidos, el orden final lo define la <strong>prelación</strong> (Art. 71/97).
+</div>
+<div class="db-card mb">
+    <div class="db-card__head"><h3 class="db-card__title">{{ elegibles|length }} docentes disponibles</h3><input type="search" class="form-control" style="max-width:240px;" placeholder="Buscar..." data-filter="tablaCand"></div>
+    <div class="table-container">
+        <table id="tablaCand">
+            <thead><tr><th>#</th><th>Docente</th><th>Categoría</th><th class="num">Puntaje</th><th>Por qué</th><th class="num">Carga</th><th></th></tr></thead>
+            <tbody>
+            {% for c in elegibles %}
+                <tr>
+                    <td class="muted">{{ loop.index }}</td>
+                    <td><div class="cell-title">{{ c.docente.nombre_completo }}</div>
+                        <div class="cell-sub">{% for t in c.docente.temas[:3] %}{{ t.nombre }}{{ ', ' if not loop.last }}{% else %}Sin temas en su perfil{% endfor %}</div></td>
+                    <td class="small">{{ c.categoria }}</td>
+                    <td class="num"><div class="puntaje"><span style="width: {{ c.puntaje|int }}%"></span></div><strong>{{ c.puntaje|nota(0) }}</strong></td>
+                    <td class="small">{{ c.motivos|join(' · ') }}</td>
+                    <td class="num small">{{ c.carga }}/{{ c.cupo }}</td>
+                    <td>
+                        <form method="post" action="{{ url_for('tesis.designar', tesis_id=tesis.id) }}">{{ m.csrf() }}
+                            <input type="hidden" name="rol" value="{{ rol }}"><input type="hidden" name="docente_id" value="{{ c.docente.id }}">
+                            <button class="btn btn-xs btn-primary">Designar</button></form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="7">{{ m.empty('No hay docentes disponibles', 'Revise los cupos, licencias y perfiles académicos.', 'users') }}</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% if descartados %}
+<details class="db-card">
+    <summary class="db-card__head" style="cursor:pointer;list-style:none;"><h3 class="db-card__title">No disponibles ({{ descartados|length }})</h3></summary>
+    <div class="table-container"><table>
+        <tbody>{% for d in descartados %}<tr><td>{{ d.docente.nombre_completo }}</td><td class="small muted">{{ d.motivo }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+</details>
+{% endif %}
+{% endblock %}

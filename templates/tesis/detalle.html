@@ -1,14 +1,11 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m with context %}
 {% block title %}{{ tesis.codigo }}{% endblock %}
-{% block page_title %}Tesis{% endblock %}
+{% block page_title %}Gestión de tesis{% endblock %}
 {% block content %}
-{% set cerrada = tesis.estado in ('sustentada', 'anulada') %}
-{% call m.page_head(tesis.titulo, tesis.codigo ~ ' · ' ~ (tesis.modalidad or 'Tesis') ~ (' · ' ~ tesis.linea_investigacion if tesis.linea_investigacion else ''), [('Tesis', url_for('tesis.index')), (tesis.codigo, None)]) %}
-    {% if current_user.es_direccion and not cerrada %}
-    <a class="btn" href="{{ url_for('tesis.editar', tesis_id=tesis.id) }}">{{ m.icon('edit') }} Editar</a>
-    <button class="btn btn-primary" data-dialog="dlgAsignar">{{ m.icon('users') }} Designar docentes</button>
-    {% endif %}
+{% call m.page_head(tesis.titulo, tesis.codigo ~ ' · ' ~ tesis.modalidad_nombre ~ (' · Régimen anterior' if tesis.regimen == 'anterior' else ''), [('Gestión de tesis', url_for('tesis.index')), (tesis.codigo, None)]) %}
+    {% if not tesis.cerrada %}<a class="btn" href="{{ url_for('tesis.editar', tesis_id=tesis.id) }}">{{ m.icon('edit') }} Editar</a>{% endif %}
+    <button class="btn" data-dialog="dlgResolucion">{{ m.icon('shield') }} Registrar resolución</button>
 {% endcall %}
 
 <div class="grid grid-3 mb">
@@ -18,109 +15,172 @@
         <div class="row-between" style="padding:6px 0;">
             <div><div class="cell-title">{{ e.nombre_completo }}</div><div class="cell-sub">{{ e.codigo }}{% if e.correo %} · {{ e.correo }}{% endif %}</div></div>
             {% if current_user.es_direccion %}
-            <form method="post" action="{{ url_for('tesis.cuenta_estudiante', estudiante_id=e.id) }}" {% if e.usuario %}data-confirm="¿Generar nueva contrasena temporal para el estudiante?"{% endif %}>{{ m.csrf() }}
-                <button class="btn btn-xs" title="Acceso del estudiante">{{ m.icon('key') }} {{ 'Restablecer' if e.usuario else 'Dar acceso' }}</button></form>
+            <form method="post" action="{{ url_for('tesis.cuenta_estudiante', estudiante_id=e.id) }}" {% if e.usuario %}data-confirm="¿Generar nueva contraseña temporal para el tesista?"{% endif %}>{{ m.csrf() }}
+                <button class="btn btn-xs">{{ m.icon('key') }} {{ 'Restablecer' if e.usuario else 'Dar acceso' }}</button></form>
             {% endif %}
         </div>
         {% endfor %}
-        {% if current_user.es_direccion and tesis.estudiantes|length < 2 and not cerrada %}
-        <button class="btn btn-xs btn-ghost" data-dialog="dlgEstudiante">{{ m.icon('plus') }} Agregar coautor</button>
-        {% endif %}
+        {% if tesis.estudiantes|length < 2 and not tesis.cerrada %}<button class="btn btn-xs btn-ghost" data-dialog="dlgEstudiante">{{ m.icon('plus') }} Agregar tesista</button>{% endif %}
+    </div></div>
+    <div class="db-card"><div class="db-card__body">
+        <div class="kpi-label">Temática</div>
+        <div class="small" style="margin-top:6px;">Área: <strong>{{ tesis.area.nombre if tesis.area else '—' }}</strong></div>
+        <div class="small">Línea: <strong>{{ tesis.linea.nombre if tesis.linea else '—' }}</strong></div>
+        <div class="row" style="margin-top:6px;gap:4px;">{% for t in tesis.temas %}<span class="badge badge-info">{{ t.nombre }}</span>{% else %}<span class="muted small">Sin temas: la propuesta automática no podrá medir afinidad.</span>{% endfor %}</div>
+        {% if tesis.palabras_clave %}<div class="small muted mt">Palabras clave: {{ tesis.palabras_clave }}</div>{% endif %}
     </div></div>
     <div class="db-card"><div class="db-card__body">
         <div class="kpi-label">Registro</div>
         <div class="small" style="margin-top:6px;">Fecha: <strong>{{ tesis.fecha_registro|fecha }}</strong></div>
-        <div class="small">Resolucion: <strong>{{ tesis.resolucion or '-' }}</strong></div>
-        <div class="small">Plazo de revision: <strong>{{ tesis.fecha_limite_revision|fecha }}</strong></div>
-        <div class="small">Semestre: <strong>{{ tesis.semestre.codigo if tesis.semestre else '-' }}</strong></div>
-    </div></div>
-    <div class="db-card"><div class="db-card__body">
-        <div class="kpi-label">Acciones del proceso</div>
-        <div class="stack" style="gap:8px;margin-top:8px;">
-            {% if not cerrada %}
-            <button class="btn btn-sm" data-dialog="dlgVersion">{{ m.icon('upload') }} Subir version del documento</button>
-            {% endif %}
-            {% if current_user.es_direccion %}
-                {% if tesis.estado in ('dictamen_favorable', 'sustentacion_programada') %}
-                <button class="btn btn-sm btn-primary" data-dialog="dlgProgramar">{{ m.icon('calendar') }} {{ 'Reprogramar' if tesis.estado == 'sustentacion_programada' else 'Programar' }} sustentacion</button>
-                {% endif %}
-                {% if tesis.estado == 'sustentacion_programada' %}
-                <button class="btn btn-sm btn-success" data-dialog="dlgSustentada">{{ m.icon('check') }} Registrar sustentacion</button>
-                {% endif %}
-                {% if not cerrada %}
-                <button class="btn btn-sm btn-danger" data-dialog="dlgAnular">Anular tesis</button>
-                {% endif %}
-            {% endif %}
-        </div>
+        <div class="small">Inscripción del tema: <strong>{{ tesis.fecha_inscripcion|fecha }}</strong></div>
+        <div class="small">Semestre: <strong>{{ tesis.semestre.codigo if tesis.semestre else '—' }}</strong></div>
+        {% if current_user.es_direccion and not tesis.cerrada %}<button class="btn btn-xs btn-danger mt" data-dialog="dlgAnular">Anular tesis</button>{% endif %}
     </div></div>
 </div>
 
-{% if tesis.resumen %}<div class="db-card mb"><div class="db-card__body small"><strong>Resumen:</strong> {{ tesis.resumen }}</div></div>{% endif %}
-
-{% set mostrar_retiro = True %}
-{% include "_tesis_seguimiento.html" %}
-
-{# -------- Dialogos -------- #}
-<dialog class="dlg" id="dlgAsignar">
-    <form method="post" action="{{ url_for('tesis.asignar', tesis_id=tesis.id) }}">
-        {{ m.csrf() }}
-        <div class="dlg-head"><h3>Designar docentes</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
-        <div class="dlg-body">
-            <div class="form-group"><label class="required">Rol</label>
-                <select name="rol" class="form-control">{% for k, v in roles.items() %}<option value="{{ k }}" {{ 'selected' if k == 'dictaminante' }}>{{ v }}</option>{% endfor %}</select></div>
-            <div class="form-group"><label class="required">Docente(s)</label>
-                <input type="search" class="form-control" placeholder="Filtrar docentes..." data-filter="tablaAsig" style="margin-bottom:8px;">
-                <div style="max-height:300px;overflow:auto;border:1px solid var(--border);border-radius:9px;">
-                <table id="tablaAsig"><thead><tr><th></th><th>Docente</th><th class="num">Asesor</th><th class="num">Dictam.</th><th class="num">Jurado</th></tr></thead><tbody>
-                {% for d in docentes %}{% set c = carga.get(d.id, {}) %}
-                    <tr><td><input type="checkbox" name="docente_id" value="{{ d.id }}" id="d{{ d.id }}"></td><td><label for="d{{ d.id }}" style="font-weight:500;cursor:pointer;">{{ d.nombre_completo }}</label></td>
-                        <td class="num">{{ c.get('asesor', 0) }}</td><td class="num">{{ c.get('dictaminante', 0) }}</td><td class="num">{{ c.get('jurado', 0) }}</td></tr>
-                {% endfor %}
-                </tbody></table></div>
-                <div class="form-hint">Las columnas muestran cuantas tesis activas tiene cada docente por rol, para repartir la carga. Maximo 3 dictaminantes por tesis.</div>
+{# ================= Acciones de la etapa actual ================= #}
+{% if not tesis.cerrada %}
+<div class="db-card mb paso-final">
+    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('check', 'width="17" height="17"') }} Qué corresponde ahora: {{ tesis.etapa_nombre }}</h3></div>
+    <div class="db-card__body stack" style="gap:12px;">
+        {% for rol, n in necesidades %}
+        <div class="row-between accion-fila">
+            <div><strong>Falta designar {{ n }} {{ roles[rol]|lower }}{{ '(es)' if n > 1 and rol != 'asesor' else '' }}</strong>
+                <div class="small muted">{% if rol == 'dictaminante' and tesis.etapa == 'dictamen' and tesis.modalidad == 'tesis' %}Los dictaminantes del proyecto continúan; se agrega el nuevo (Art. 93).{% elif rol == 'dirimente' %}Revisará la tesis y reemplaza al dictamen insuficiente si es favorable (Art. 83/108).{% else %}El docente deberá aceptar o declarar impedimento.{% endif %}</div></div>
+            <div class="row">
+                <form method="post" action="{{ url_for('tesis.proponer', tesis_id=tesis.id) }}">{{ m.csrf() }}<input type="hidden" name="rol" value="{{ rol }}">
+                    <button class="btn btn-sm btn-primary">{{ m.icon('star') }} Proponer automáticamente</button></form>
+                <a class="btn btn-sm" href="{{ url_for('tesis.candidatos', tesis_id=tesis.id, rol=rol) }}">Ver candidatos</a>
             </div>
         </div>
-        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">Designar y notificar</button></div>
+        {% endfor %}
+
+        {% if tesis.activos('dictaminante', 'dirimente', 'asesor') %}
+        <div class="row small"><span class="muted">Oficio de propuesta al Decanato (orden de prelación):</span>
+            {% if tesis.activos('asesor') %}<a class="btn btn-xs" href="{{ url_for('tesis.oficio', tesis_id=tesis.id, rol='asesor') }}">{{ m.icon('download') }} Asesor</a>{% endif %}
+            {% if tesis.activos('dictaminante') %}<a class="btn btn-xs" href="{{ url_for('tesis.oficio', tesis_id=tesis.id, rol='dictaminante') }}">{{ m.icon('download') }} Dictaminantes</a>{% endif %}
+            {% if tesis.activos('dirimente') %}<a class="btn btn-xs" href="{{ url_for('tesis.oficio', tesis_id=tesis.id, rol='dirimente') }}">{{ m.icon('download') }} Dirimente</a>{% endif %}
+        </div>
+        {% endif %}
+
+        {% if tesis.decision_pendiente == 'decano' %}
+        <form method="post" action="{{ url_for('tesis.decision', tesis_id=tesis.id) }}" class="accion-fila">
+            {{ m.csrf() }}
+            <strong>Dictámenes discrepantes: registre la decisión del Decano o de la comisión revisora (Art. 108-109)</strong>
+            <div class="form-grid mt">
+                <div class="form-group"><label>Decisión</label><select name="decision" class="form-control">
+                    <option value="dirimente">Designar dirimente</option><option value="continuar">La tesis continúa</option><option value="rechazar">Rechazar la tesis</option></select></div>
+                <div class="form-group"><label class="required">Sustento</label><input name="sustento" class="form-control" required></div>
+            </div>
+            <div class="form-actions"><button class="btn btn-primary btn-sm">Registrar decisión</button></div>
+        </form>
+        {% endif %}
+
+        {% if tesis.etapa in ('asesor', 'proyecto', 'desarrollo', 'dictamen', 'observaciones') %}
+        <div class="row-between accion-fila">
+            <div><strong>{% if hay_observaciones %}Levantamiento de observaciones{% elif tesis.etapa == 'observaciones' %}Versión final con observaciones de la sustentación levantadas{% elif tesis.etapa in ('desarrollo', 'dictamen') or tesis.modalidad == 'suficiencia' %}Documento de la tesis{% else %}Proyecto de tesis{% endif %}</strong>
+                <div class="small muted">Normalmente lo sube el tesista desde su portal; el DAIS también puede registrarlo.</div></div>
+            <button class="btn btn-sm" data-dialog="dlgVersion">{{ m.icon('upload') }} Registrar documento</button>
+        </div>
+        {% endif %}
+
+        {% if tesis.etapa == 'inscripcion' %}
+        <div class="row-between accion-fila"><div><strong>Proyecto aprobado: registrar la resolución de inscripción del tema</strong><div class="small muted">Desde esa fecha el tesista tiene un año para presentar su tesis (Art. 87).</div></div>
+            <button class="btn btn-sm btn-primary" data-dialog="dlgResolucion" data-fill-tipo="inscripcion">Registrar inscripción</button></div>
+        {% elif tesis.etapa == 'desarrollo' and not tesis.plazo_ampliado %}
+        <div class="row-between accion-fila"><div><strong>Ampliación del plazo de entrega</strong><div class="small muted">Por una sola vez, un año más (Art. 88).</div></div>
+            <button class="btn btn-sm" data-dialog="dlgResolucion" data-fill-tipo="ampliacion">Registrar ampliación</button></div>
+        {% elif tesis.etapa == 'apto' %}
+            {% if not tesis.resolucion('apto') %}
+            <div class="row-between accion-fila"><div><strong>Dictamen favorable: registrar la resolución de apto</strong><div class="small muted">Art. 115.</div></div>
+                <button class="btn btn-sm btn-primary" data-dialog="dlgResolucion" data-fill-tipo="apto">Registrar apto</button></div>
+            {% else %}
+            <div class="row-between accion-fila"><div><strong>Programar la sustentación {{ '(segunda)' if tesis.numero_sustentacion >= 1 else '' }}</strong><div class="small muted">Jurado: los dictaminantes; preside el de mayor prelación (Art. 118). Horario 7:00-18:00.</div></div>
+                <button class="btn btn-sm btn-primary" data-dialog="dlgProgramar">{{ m.icon('calendar') }} Programar</button></div>
+            {% endif %}
+        {% elif tesis.etapa == 'sustentacion' %}
+        <form method="post" action="{{ url_for('tesis.sustentacion', tesis_id=tesis.id) }}" class="accion-fila">
+            {{ m.csrf() }}<input type="hidden" name="accion" value="notas">
+            <strong>Registrar el acta de sustentación (notas de 0 a 20)</strong>
+            <p class="small muted">Si una nota difiere en 4 o más puntos de la más próxima se descarta; la nota final se redondea a favor del tesista (Art. 130).</p>
+            <div class="form-grid-3 mt">
+                {% for mb in tesis.jurado %}
+                <div class="form-group"><label>{{ 'Presidente' if loop.first else ('Secretario(a)' if loop.last else 'Miembro') }}: {{ mb.docente.nombre_natural }}</label>
+                    <input name="nota_{{ mb.id }}" type="number" min="0" max="20" step="1" class="form-control" required></div>
+                {% endfor %}
+            </div>
+            <label class="small" style="font-weight:500;"><input type="checkbox" name="con_observaciones" value="1"> El jurado formuló observaciones (10 días hábiles para levantarlas)</label>
+            <div class="form-actions"><button class="btn btn-sm" type="button" data-dialog="dlgProgramar">Reprogramar</button><button class="btn btn-success btn-sm">Registrar resultado</button></div>
+        </form>
+        {% elif tesis.etapa == 'observaciones' %}
+        <form method="post" action="{{ url_for('tesis.sustentacion', tesis_id=tesis.id) }}" class="row-between accion-fila" data-confirm="¿El presidente del jurado dio conformidad al levantamiento de observaciones?">
+            {{ m.csrf() }}<input type="hidden" name="accion" value="conformidad">
+            <div><strong>Conformidad del jurado</strong><div class="small muted">Registre cuando el presidente remita el documento de conformidad (Art. 132).</div></div>
+            <button class="btn btn-sm btn-success">Registrar conformidad</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if tesis.resumen %}<div class="db-card mb"><div class="db-card__body small"><strong>Resumen:</strong> {{ tesis.resumen }}</div></div>{% endif %}
+
+{% set gestion = True %}
+{% include "_tesis_seguimiento.html" %}
+
+{# ================= Dialogos ================= #}
+<dialog class="dlg" id="dlgReemplazar">
+    <form method="post">{{ m.csrf() }}
+        <div class="dlg-head"><h3>Reemplazar docente</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+        <div class="dlg-body">
+            <p class="small muted mb">Causales: dejó de laborar, licencia, más de 30 días sin dictaminar, observaciones reiteradas u otra justificada (Art. 63, 84, 110). Se propondrá automáticamente a otro docente.</p>
+            <div class="form-group"><label class="required">Motivo</label><textarea name="motivo" class="form-control" required></textarea></div>
+        </div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">Reemplazar</button></div>
+    </form>
+</dialog>
+
+<dialog class="dlg" id="dlgResolucion">
+    <form method="post" action="{{ url_for('tesis.resolucion', tesis_id=tesis.id) }}">{{ m.csrf() }}
+        <div class="dlg-head"><h3>Registrar resolución del Decanato</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+        <div class="dlg-body form-grid">
+            <div class="form-group full"><label class="required">Tipo</label><select name="tipo" class="form-control">{% for k, v in tipos_resolucion.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label class="required">Número</label><input name="numero" class="form-control" required placeholder="Ej. 123-2026-FIA-UAC"></div>
+            <div class="form-group"><label class="required">Fecha</label><input name="fecha" type="date" class="form-control" required value="{{ hoy.isoformat() }}"></div>
+        </div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">Registrar</button></div>
     </form>
 </dialog>
 
 <dialog class="dlg" id="dlgVersion">
-    <form method="post" action="{{ url_for('tesis.subir_version', tesis_id=tesis.id) }}" enctype="multipart/form-data">
-        {{ m.csrf() }}
-        <div class="dlg-head"><h3>Subir version del documento</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+    <form method="post" action="{{ url_for('tesis.subir_version', tesis_id=tesis.id) }}" enctype="multipart/form-data">{{ m.csrf() }}
+        <div class="dlg-head"><h3>Registrar documento</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
         <div class="dlg-body">
-            <div class="form-group"><label class="required">Archivo (PDF o Word)</label><input type="file" name="archivo" accept=".pdf,.doc,.docx" required class="form-control"></div>
-            <div class="form-group"><label>Comentario</label><textarea name="comentario" class="form-control" placeholder="Cambios realizados, observaciones levantadas..."></textarea></div>
-            <p class="small muted">Las revisiones observadas volveran a estado "Pendiente" para que los dictaminantes revisen la nueva version.</p>
+            <div class="form-group"><label class="required">Documento (PDF o Word)</label><input type="file" name="archivo" accept=".pdf,.doc,.docx" required class="form-control"></div>
+            {% if hay_observaciones %}
+            <div class="form-group"><label class="required">Documento de levantamiento de observaciones</label><input type="file" name="subsanacion" accept=".pdf,.doc,.docx" required class="form-control">
+                <div class="form-hint">Indica cómo se subsanó cada observación y en qué parte del documento (Art. 78, 103).</div></div>
+            {% endif %}
+            <div class="form-group"><label>Comentario</label><textarea name="comentario" class="form-control"></textarea></div>
         </div>
-        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">Subir</button></div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">Registrar</button></div>
     </form>
 </dialog>
 
 <dialog class="dlg" id="dlgProgramar">
-    <form method="post" action="{{ url_for('tesis.sustentacion', tesis_id=tesis.id) }}">
-        {{ m.csrf() }}<input type="hidden" name="accion" value="programar">
-        <div class="dlg-head"><h3>Programar sustentacion</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+    <form method="post" action="{{ url_for('tesis.sustentacion', tesis_id=tesis.id) }}">{{ m.csrf() }}<input type="hidden" name="accion" value="programar">
+        <div class="dlg-head"><h3>Programar sustentación</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
         <div class="dlg-body form-grid">
             <div class="form-group"><label class="required">Fecha y hora</label><input type="datetime-local" name="fecha_sustentacion" class="form-control" required></div>
-            <div class="form-group"><label>Lugar / enlace</label><input name="lugar" class="form-control" value="{{ tesis.lugar_sustentacion or '' }}"></div>
+            <div class="form-group"><label>Modalidad</label><select name="modalidad_sustentacion" class="form-control"><option value="presencial">Presencial</option><option value="virtual">Virtual</option></select></div>
+            <div class="form-group full"><label>Lugar o enlace</label><input name="lugar" class="form-control" value="{{ tesis.lugar_sustentacion or '' }}"></div>
         </div>
         <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-primary">Programar y notificar</button></div>
     </form>
 </dialog>
 
-<dialog class="dlg" id="dlgSustentada">
-    <form method="post" action="{{ url_for('tesis.sustentacion', tesis_id=tesis.id) }}">
-        {{ m.csrf() }}<input type="hidden" name="accion" value="registrar">
-        <div class="dlg-head"><h3>Registrar sustentacion</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
-        <div class="dlg-body"><div class="form-group"><label class="required">Nota (0 - 20)</label><input type="number" name="nota" min="0" max="20" step="1" class="form-control" required></div></div>
-        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-success">Registrar</button></div>
-    </form>
-</dialog>
-
 <dialog class="dlg" id="dlgAnular">
-    <form method="post" action="{{ url_for('tesis.anular', tesis_id=tesis.id) }}">
-        {{ m.csrf() }}
+    <form method="post" action="{{ url_for('tesis.anular', tesis_id=tesis.id) }}">{{ m.csrf() }}
         <div class="dlg-head"><h3>Anular tesis</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
         <div class="dlg-body"><div class="form-group"><label class="required">Motivo</label><textarea name="motivo" class="form-control" required></textarea></div></div>
         <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-danger">Anular</button></div>
@@ -128,11 +188,10 @@
 </dialog>
 
 <dialog class="dlg" id="dlgEstudiante">
-    <form method="post" action="{{ url_for('tesis.agregar_estudiante', tesis_id=tesis.id) }}">
-        {{ m.csrf() }}
-        <div class="dlg-head"><h3>Agregar coautor</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+    <form method="post" action="{{ url_for('tesis.agregar_estudiante', tesis_id=tesis.id) }}">{{ m.csrf() }}
+        <div class="dlg-head"><h3>Agregar tesista</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
         <div class="dlg-body form-grid">
-            <div class="form-group"><label class="required">Codigo</label><input name="codigo" class="form-control" required></div>
+            <div class="form-group"><label class="required">Código</label><input name="codigo" class="form-control" required></div>
             <div class="form-group"><label>Correo</label><input name="correo" type="email" class="form-control"></div>
             <div class="form-group"><label>Apellidos</label><input name="apellidos" class="form-control"></div>
             <div class="form-group"><label>Nombres</label><input name="nombres" class="form-control"></div>

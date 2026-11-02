@@ -5,37 +5,59 @@
 {% block content %}
 {{ m.page_head(tesis.titulo, tesis.codigo ~ ' · Tesista(s): ' ~ tesis.estudiantes_texto, [('Mis tesis', url_for('docente.tesis')), (tesis.codigo, None)]) }}
 
-{% for mb in mios if mb.emite_dictamen %}
-<div class="db-card mb">
-    <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('check', 'width="17" height="17"') }} Mi dictamen</h3>{{ m.estado(mb.estado_revision, mb.estado_nombre) }}</div>
-    <div class="db-card__body">
-        {% if tesis.estado in ('sustentada', 'anulada') %}
-            <p class="muted">La tesis esta cerrada.</p>
-        {% elif not tesis.versiones %}
-            <div class="callout">El estudiante aun no ha subido el documento. Recibira una notificacion cuando este disponible.</div>
-        {% else %}
-            <p class="small mb">Revise la <a href="{{ url_for('archivos.descargar', tipo='tesis', item_id=tesis.version_actual.id) }}">version {{ tesis.version_actual.numero }}</a> y registre su dictamen.</p>
-            <form method="post" action="{{ url_for('docente.revision', miembro_id=mb.id) }}" enctype="multipart/form-data">
+{% for mb in mios %}
+    {% if mb.estado_designacion == 'propuesto' %}
+    <div class="db-card mb paso-final">
+        <div class="db-card__head"><h3 class="db-card__title">Su designación como {{ mb.rol_nombre|lower }}</h3>{{ m.estado(mb.estado_designacion, mb.estado_nombre) }}</div>
+        <div class="db-card__body row-between">
+            <p class="small">Revise el título y el tema. Si tiene parentesco con el tesista u otro impedimento, declárelo para que el DAIS designe a otro docente.</p>
+            <div class="row">
+                <form method="post" action="{{ url_for('docente.responder_designacion', miembro_id=mb.id) }}">{{ m.csrf() }}<input type="hidden" name="respuesta" value="acepto"><button class="btn btn-success">{{ m.icon('check') }} Acepto</button></form>
+                <button class="btn btn-danger" data-dialog="dlgImpedimento" data-action="{{ url_for('docente.responder_designacion', miembro_id=mb.id) }}">Tengo un impedimento</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% for d in mb.dictamenes if d.pendiente and mb.estado_designacion == 'aceptado' %}
+    {% set doc = tesis.versiones|selectattr('etapa', 'equalto', 'proyecto' if d.etapa == 'proyecto' else 'tesis')|first %}
+    <div class="db-card mb paso-final">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('check', 'width="17" height="17"') }} Emitir dictamen · {{ 'proyecto' if d.etapa == 'proyecto' else 'tesis' }}, ronda {{ d.ronda }}</h3>
+            <span class="small"><span class="semaforo {{ semaforo(d.inicio, d.limite) }}"></span>Vence el {{ d.limite|fecha }}</span></div>
+        <div class="db-card__body">
+            {% if doc %}
+            <p class="small mb">Documento a revisar: <a href="{{ url_for('archivos.descargar', tipo='tesis', item_id=doc.id) }}">versión {{ doc.numero }} ({{ doc.archivo_nombre }})</a>
+                {% if doc.subsanacion_ruta %} · <a href="{{ url_for('archivos.descargar', tipo='subsanacion', item_id=doc.id) }}">levantamiento de observaciones</a>{% endif %}</p>
+            {% endif %}
+            <form method="post" action="{{ url_for('docente.emitir_dictamen', dictamen_id=d.id) }}" enctype="multipart/form-data">
                 {{ m.csrf() }}
                 <div class="form-grid">
-                    <div class="form-group">
-                        <label class="required">Dictamen</label>
-                        <select name="estado" class="form-control" required>
-                            <option value="visto_bueno" {{ 'selected' if mb.estado_revision == 'visto_bueno' }}>Visto bueno (aprobar)</option>
-                            <option value="observado" {{ 'selected' if mb.estado_revision == 'observado' }}>Observado (requiere correcciones)</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label>Informe / documento con observaciones</label><input type="file" name="archivo" accept=".pdf,.doc,.docx" class="form-control"></div>
-                    <div class="form-group full"><label>Observaciones</label><textarea name="observaciones" class="form-control" placeholder="Obligatorio si la tesis es observada">{{ mb.observaciones or '' }}</textarea></div>
+                    <div class="form-group"><label class="required">Dictamen</label>
+                        <select name="resultado" class="form-control" required>
+                            <option value="">— Seleccione —</option>
+                            <option value="suficiente">Suficiente (conforme en contenido y forma)</option>
+                            <option value="con_observaciones">Con observaciones (debe corregirse)</option>
+                            <option value="insuficiente">Insuficiente (se rechaza)</option>
+                        </select></div>
+                    <div class="form-group"><label>Informe de dictamen (PDF o Word)</label><input type="file" name="archivo" accept=".pdf,.doc,.docx" class="form-control"></div>
+                    <div class="form-group full"><label>Observaciones / sustento</label><textarea name="observaciones" class="form-control" placeholder="Obligatorio si es con observaciones o insuficiente"></textarea>
+                        <div class="form-hint">Considere que es una tesis de pregrado (Art. 76, 101).</div></div>
                 </div>
                 <div class="form-actions"><button class="btn btn-primary">Registrar dictamen</button></div>
             </form>
-        {% endif %}
+        </div>
     </div>
-</div>
+    {% endfor %}
 {% endfor %}
 
 {% if tesis.resumen %}<div class="db-card mb"><div class="db-card__body small"><strong>Resumen:</strong> {{ tesis.resumen }}</div></div>{% endif %}
-{% set mostrar_retiro = False %}
+{% set gestion = False %}
 {% include "_tesis_seguimiento.html" %}
+
+<dialog class="dlg" id="dlgImpedimento">
+    <form method="post">{{ m.csrf() }}<input type="hidden" name="respuesta" value="impedimento">
+        <div class="dlg-head"><h3>Declarar impedimento</h3><button type="button" class="dlg-close" data-close>&times;</button></div>
+        <div class="dlg-body"><div class="form-group"><label class="required">Motivo</label><textarea name="motivo" class="form-control" required></textarea></div></div>
+        <div class="dlg-foot"><button type="button" class="btn" data-close>Cancelar</button><button class="btn btn-danger">Registrar impedimento</button></div>
+    </form>
+</dialog>
 {% endblock %}

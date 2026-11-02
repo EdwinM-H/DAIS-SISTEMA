@@ -54,6 +54,72 @@ document.addEventListener("DOMContentLoaded", function () {
         btn.addEventListener("click", function () { btn.closest("dialog").close(); });
     });
 
+    // ---- Menus flotantes (notificaciones y cuenta) ----
+    var popovers = document.querySelectorAll("[data-popover]");
+    function cerrarPopovers(excepto) {
+        popovers.forEach(function (p) {
+            if (p === excepto) return;
+            p.classList.remove("open");
+            var t = p.querySelector("[data-popover-trigger]");
+            if (t) t.setAttribute("aria-expanded", "false");
+        });
+    }
+    popovers.forEach(function (p) {
+        var trigger = p.querySelector("[data-popover-trigger]");
+        trigger.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var abrir = !p.classList.contains("open");
+            cerrarPopovers(p);
+            p.classList.toggle("open", abrir);
+            trigger.setAttribute("aria-expanded", abrir ? "true" : "false");
+        });
+        p.querySelector(".popover").addEventListener("click", function (e) {
+            if (e.target.closest("[data-dialog]")) cerrarPopovers();
+            else e.stopPropagation();
+        });
+    });
+    document.addEventListener("click", function () { cerrarPopovers(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") cerrarPopovers(); });
+
+    // ---- Ventana de cambio de contrasena ----
+    var dlgPass = document.getElementById("dlgPassword");
+    if (dlgPass) {
+        var nueva = dlgPass.querySelector("[data-pass-nueva]");
+        var confirmar = dlgPass.querySelector("[data-pass-confirmar]");
+        var aviso = dlgPass.querySelector("[data-pass-coincide]");
+        function revisar() {
+            var v = nueva.value;
+            var reglas = { largo: v.length >= 8, letra: /[A-Za-z]/.test(v), numero: /\d/.test(v) };
+            Object.keys(reglas).forEach(function (k) {
+                dlgPass.querySelector('[data-regla="' + k + '"]').classList.toggle("ok", reglas[k]);
+            });
+            if (!confirmar.value) { aviso.textContent = ""; return; }
+            var iguales = confirmar.value === v;
+            aviso.textContent = iguales ? "Las contraseñas coinciden." : "Las contraseñas no coinciden.";
+            aviso.style.color = iguales ? "var(--success)" : "var(--danger)";
+        }
+        nueva.addEventListener("input", revisar);
+        confirmar.addEventListener("input", revisar);
+        dlgPass.querySelector("[data-pass-ver]").addEventListener("change", function (e) {
+            dlgPass.querySelectorAll('input[type="password"], input[data-visible]').forEach(function (i) {
+                i.type = e.target.checked ? "text" : "password";
+                i.setAttribute("data-visible", "1");
+            });
+        });
+        dlgPass.querySelector("form").addEventListener("submit", function (e) {
+            if (nueva.value !== confirmar.value) { e.preventDefault(); revisar(); confirmar.focus(); }
+        });
+        // Reabre la ventana si hubo un error al guardar
+        var params = new URLSearchParams(window.location.search);
+        if (params.get("cambiar_clave") === "1") {
+            params.delete("cambiar_clave");
+            var limpia = window.location.pathname + (params.toString() ? "?" + params.toString() : "");
+            window.history.replaceState(null, "", limpia);
+            dlgPass.querySelector('[name="volver"]').value = limpia;
+            if (typeof dlgPass.showModal === "function") dlgPass.showModal();
+        }
+    }
+
     // ---- Confirmacion antes de acciones destructivas ----
     document.querySelectorAll("form[data-confirm]").forEach(function (form) {
         form.addEventListener("submit", function (e) {

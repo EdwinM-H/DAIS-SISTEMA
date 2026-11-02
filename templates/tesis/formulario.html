@@ -1,32 +1,43 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m with context %}
 {% block title %}{{ 'Editar tesis' if tesis else 'Registrar tesis' }}{% endblock %}
-{% block page_title %}Tesis{% endblock %}
+{% block page_title %}Gestión de tesis{% endblock %}
 {% block content %}
-{{ m.page_head('Editar ' ~ tesis.codigo if tesis else 'Registrar tesis', None, [('Tesis', url_for('tesis.index')), (tesis.codigo if tesis else 'Nueva', None)]) }}
+{{ m.page_head('Editar ' ~ tesis.codigo if tesis else 'Registrar tesis', 'La línea y los temas permiten proponer automáticamente a los docentes más afines.', [('Gestión de tesis', url_for('tesis.index')), (tesis.codigo if tesis else 'Nueva', None)]) }}
 <form method="post" class="stack">
     {{ m.csrf() }}
     <div class="db-card">
-        <div class="db-card__head"><h3 class="db-card__title">Datos de la tesis</h3></div>
+        <div class="db-card__head"><h3 class="db-card__title">Datos generales</h3></div>
         <div class="db-card__body form-grid">
-            <div class="form-group full"><label class="required">Titulo</label><textarea name="titulo" class="form-control" required style="min-height:64px;">{{ tesis.titulo if tesis else request.form.get('titulo', '') }}</textarea></div>
-            <div class="form-group"><label>Linea de investigacion</label><input name="linea_investigacion" class="form-control" value="{{ tesis.linea_investigacion or '' if tesis else request.form.get('linea_investigacion', '') }}" list="lineas">
-                <datalist id="lineas"><option value="Ingenieria de Software"><option value="Inteligencia Artificial"><option value="Ciencia de Datos"><option value="Redes y Seguridad"><option value="Sistemas de Informacion"><option value="Transformacion Digital"></datalist></div>
-            <div class="form-group"><label>Modalidad</label>
-                <select name="modalidad" class="form-control">{% for mo in ['Tesis', 'Trabajo de suficiencia profesional', 'Articulo cientifico'] %}<option {{ 'selected' if tesis and tesis.modalidad == mo }}>{{ mo }}</option>{% endfor %}</select></div>
-            <div class="form-group"><label>Resolucion</label><input name="resolucion" class="form-control" value="{{ tesis.resolucion or '' if tesis else '' }}" placeholder="N° de resolucion"></div>
-            <div class="form-group"><label>Fecha limite de revision</label><input type="date" name="fecha_limite_revision" class="form-control" value="{{ tesis.fecha_limite_revision.isoformat() if tesis and tesis.fecha_limite_revision else '' }}"></div>
+            <div class="form-group full"><label class="required">Título</label><textarea name="titulo" class="form-control" required style="min-height:64px;">{{ tesis.titulo if tesis else request.form.get('titulo', '') }}</textarea></div>
+            {% if not tesis %}
+            <div class="form-group"><label>Modalidad de titulación</label><select name="modalidad" class="form-control">{% for k, v in modalidades.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+            <div class="form-group"><label>Régimen</label><select name="regimen" class="form-control">{% for k, v in regimenes.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+                <div class="form-hint">"Régimen anterior" solo para casos iniciados antes del Reglamento 2024 (Disp. Transitoria Tercera).</div></div>
+            {% endif %}
+            <div class="form-group full"><label>Palabras clave</label><input name="palabras_clave" class="form-control" value="{{ tesis.palabras_clave or '' if tesis else request.form.get('palabras_clave', '') }}" placeholder="Separadas por comas: machine learning, deserción, predicción"></div>
             <div class="form-group full"><label>Resumen</label><textarea name="resumen" class="form-control">{{ tesis.resumen or '' if tesis else request.form.get('resumen', '') }}</textarea></div>
         </div>
     </div>
+
+    <div class="db-card">
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('flask', 'width="17" height="17"') }} Línea y temas de investigación (EPIS)</h3><span class="db-card__tag">elija una línea y sus temas</span></div>
+        <div class="db-card__body">
+            {% set modo = 'tesis' %}
+            {% set linea_id = tesis.linea_id if tesis else None %}
+            {% set sel_temas = tesis.temas|map(attribute='id')|list if tesis else [] %}
+            {% include "_selector_temas.html" %}
+        </div>
+    </div>
+
     {% if not tesis %}
     <div class="db-card">
-        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('cap', 'width="17" height="17"') }} Tesista(s)</h3><span class="db-card__tag">si el codigo ya existe se reutiliza el estudiante</span></div>
+        <div class="db-card__head"><h3 class="db-card__title">{{ m.icon('cap', 'width="17" height="17"') }} Tesista(s)</h3><span class="db-card__tag">uno o dos de la misma escuela (Art. 52)</span></div>
         <div class="db-card__body">
-            {% for p, n in [('e1_', 'Estudiante 1'), ('e2_', 'Estudiante 2 (opcional)')] %}
-            <p class="strong small mb" style="margin-bottom:6px;">{{ n }}</p>
+            {% for p, n in [('e1_', 'Tesista 1'), ('e2_', 'Tesista 2 (opcional)')] %}
+            <p class="strong small" style="margin-bottom:6px;">{{ n }}</p>
             <div class="form-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
-                <div class="form-group"><label class="{{ 'required' if loop.first }}">Codigo</label><input name="{{ p }}codigo" class="form-control" {{ 'required' if loop.first }} value="{{ request.form.get(p ~ 'codigo', '') }}"></div>
+                <div class="form-group"><label class="{{ 'required' if loop.first }}">Código</label><input name="{{ p }}codigo" class="form-control" {{ 'required' if loop.first }} value="{{ request.form.get(p ~ 'codigo', '') }}"></div>
                 <div class="form-group"><label>Apellidos</label><input name="{{ p }}apellidos" class="form-control" value="{{ request.form.get(p ~ 'apellidos', '') }}"></div>
                 <div class="form-group"><label>Nombres</label><input name="{{ p }}nombres" class="form-control" value="{{ request.form.get(p ~ 'nombres', '') }}"></div>
                 <div class="form-group"><label>Correo</label><input name="{{ p }}correo" type="email" class="form-control" value="{{ request.form.get(p ~ 'correo', '') }}"></div>
@@ -37,8 +48,12 @@
     <div class="db-card">
         <div class="db-card__head"><h3 class="db-card__title">Asesor</h3></div>
         <div class="db-card__body">
-            <select name="asesor_id" class="form-control"><option value="">— Asignar despues —</option>{% for d in docentes %}<option value="{{ d.id }}">{{ d.nombre_completo }}</option>{% endfor %}</select>
-            <div class="form-hint">Los dictaminantes se asignan desde el detalle de la tesis.</div>
+            <select name="asesor_id" class="form-control">
+                <option value="">— Designar después —</option>
+                <option value="auto">★ Proponer automáticamente (baja carga y afín al tema, Art. 58)</option>
+                {% for d in docentes %}<option value="{{ d.id }}">{{ d.nombre_completo }}</option>{% endfor %}
+            </select>
+            <div class="form-hint">Si el tesista trae carta de aceptación, elija al docente (Art. 56-57). El docente deberá aceptar la designación en su portal.</div>
         </div>
     </div>
     {% endif %}

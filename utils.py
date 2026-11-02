@@ -28,11 +28,25 @@ def roles_required(*roles):
         def envoltura(*args, **kwargs):
             if current_user.rol not in roles:
                 abort(403)
+            # Cuentas de portal sin su ficha vinculada: mensaje claro en lugar de un error 500
+            if current_user.rol == "docente" and not current_user.docente:
+                return cuenta_sin_vinculo("docente")
+            if current_user.rol == "estudiante" and not current_user.estudiante:
+                return cuenta_sin_vinculo("estudiante")
             return vista(*args, **kwargs)
 
         return envoltura
 
     return decorador
+
+
+def cuenta_sin_vinculo(tipo):
+    from flask import render_template
+
+    return render_template(
+        "error.html", code=409,
+        message=f"Su cuenta no está vinculada a un registro de {tipo}. Comuníquese con el DAIS para que la vinculen.",
+    ), 409
 
 
 gestion_required = roles_required("admin", "director", "operador")
@@ -176,6 +190,29 @@ CLASES_ESTADO = {
     "sustentacion_programada": "badge-purple",
     "sustentada": "badge-success",
     "anulada": "badge-secondary",
+    # Etapas de tesis
+    "asesor": "badge-secondary",
+    "proyecto": "badge-info",
+    "inscripcion": "badge-gold",
+    "desarrollo": "badge-info",
+    "dictamen": "badge-info",
+    "apto": "badge-gold",
+    "sustentacion": "badge-purple",
+    "observaciones": "badge-warning",
+    "titulado": "badge-success",
+    "rechazada": "badge-danger",
+    # Designaciones y dictamenes
+    "propuesto": "badge-warning",
+    "aceptado": "badge-success",
+    "impedimento": "badge-danger",
+    "reemplazado": "badge-secondary",
+    "retirado": "badge-secondary",
+    "suficiente": "badge-success",
+    "con_observaciones": "badge-warning",
+    "insuficiente": "badge-danger",
+    "directo": "badge-outline",
+    "aprobado": "badge-success",
+    "rechazado": "badge-danger",
     "Completa": "badge-success",
     "Parcial": "badge-warning",
     "Pendiente": "badge-secondary",
@@ -183,6 +220,10 @@ CLASES_ESTADO = {
 
 
 def registrar_filtros(app):
+    from services.calendario import semaforo
+
+    app.jinja_env.globals["semaforo"] = semaforo
+
     @app.template_filter("nota")
     def fmt_nota(valor, decimales=2):
         if valor is None or valor == "":

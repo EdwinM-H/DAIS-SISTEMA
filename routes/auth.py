@@ -35,6 +35,9 @@ def login():
             if user.debe_cambiar_password:
                 flash("Por seguridad, defina una nueva contrasena antes de continuar.", "info")
                 return redirect(url_for("auth.cambiar_password"))
+            if user.rol == "docente" and user.docente and not user.docente.perfil_completo:
+                flash("Complete su perfil académico. Puede hacerlo después, pero se usará para proponerle tesis afines.", "info")
+                return redirect(url_for("docente.perfil_academico"))
             siguiente = request.args.get("next")
             if url_segura(siguiente) and siguiente != "/":
                 return redirect(siguiente)
@@ -64,20 +67,33 @@ def cambiar_password():
         actual = request.form.get("actual", "")
         nueva = request.form.get("nueva", "")
         confirmar = request.form.get("confirmar", "")
+        # Si viene de la ventana flotante, se vuelve a la misma pagina
+        volver = request.form.get("volver") if url_segura(request.form.get("volver")) else None
+        obligatorio = current_user.debe_cambiar_password
+        error = None
         if not current_user.check_password(actual):
-            flash("La contrasena actual no es correcta.", "danger")
+            error = "La contraseña actual no es correcta."
         elif nueva != confirmar:
-            flash("La confirmacion no coincide con la nueva contrasena.", "danger")
+            error = "La confirmación no coincide con la nueva contraseña."
         elif not password_valida(nueva):
-            flash(VALIDACION_PASSWORD, "danger")
+            error = VALIDACION_PASSWORD
         elif nueva == actual:
-            flash("La nueva contrasena debe ser distinta de la actual.", "danger")
-        else:
-            current_user.set_password(nueva)
-            current_user.debe_cambiar_password = False
-            db.session.commit()
-            flash("Contrasena actualizada correctamente.", "success")
-            return redirect(destino_inicio(current_user))
+            error = "La nueva contraseña debe ser distinta de la actual."
+        if error:
+            flash(error, "danger")
+            if volver and not obligatorio:
+                base = volver.rstrip("?")
+                return redirect(base + ("&" if "?" in base else "?") + "cambiar_clave=1")
+            return render_template("cuenta/cambiar_password.html")
+        current_user.set_password(nueva)
+        current_user.debe_cambiar_password = False
+        db.session.commit()
+        flash("Contraseña actualizada correctamente.", "success")
+        if obligatorio and current_user.rol == "docente" and current_user.docente and not current_user.docente.perfil_completo:
+            return redirect(url_for("docente.perfil_academico"))
+        if volver and not obligatorio:
+            return redirect(volver.rstrip("?"))
+        return redirect(destino_inicio(current_user))
     return render_template("cuenta/cambiar_password.html")
 
 
@@ -102,4 +118,5 @@ def abrir_notificacion(notif_id):
 def marcar_leidas():
     Notificacion.query.filter_by(usuario_id=current_user.id, leida=False).update({"leida": True})
     db.session.commit()
-    return redirect(request.referrer if url_segura(request.referrer or "") else url_for("auth.notificaciones"))
+    volver = request.form.get("volver")
+    return redirect(volver.rstrip("?") if url_segura(volver) else url_for("auth.notificaciones"))

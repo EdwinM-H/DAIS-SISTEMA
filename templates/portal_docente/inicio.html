@@ -30,8 +30,8 @@
 
 {% if tesis_pendientes %}
 <div class="callout gold mb">{{ m.icon('book', 'width="16" height="16" style="vertical-align:-3px"') }}
-    Tiene <strong>{{ tesis_pendientes|length }}</strong> tesis pendiente(s) de su dictamen:
-    {% for mb in tesis_pendientes %}<a href="{{ url_for('docente.tesis_detalle', tesis_id=mb.tesis.id) }}">{{ mb.tesis.codigo }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+    Tiene <strong>{{ tesis_pendientes|length }}</strong> pendiente(s) en tesis (designaciones por aceptar o dictámenes por emitir).
+    <a href="{{ url_for('docente.tesis') }}"><strong>Ver mis tesis &rarr;</strong></a>
 </div>
 {% endif %}
 

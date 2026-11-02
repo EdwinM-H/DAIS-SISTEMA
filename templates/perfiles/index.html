@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m with context %}
+{% block title %}Perfiles académicos{% endblock %}
+{% block page_title %}Perfiles académicos{% endblock %}
+{% block content %}
+{% call m.page_head('Perfiles académicos de los docentes', 'Los docentes declaran sus líneas, grado, colegiatura y experiencia; el DAIS registra categoría, condición y año de ingreso, y valida lo que define la prelación.') %}
+    <a class="btn" href="{{ url_for('perfiles.validaciones') }}">{{ m.icon('check') }} Validaciones{% if pendientes %} <span class="badge badge-warning">{{ pendientes }}</span>{% endif %}</a>
+    <form method="post" action="{{ url_for('perfiles.recordatorio') }}" data-confirm="Se notificará a los docentes con perfil incompleto. ¿Continuar?">{{ m.csrf() }}<button class="btn btn-primary">{{ m.icon('bell') }} Enviar recordatorio</button></form>
+{% endcall %}
+
+<div class="kpis">
+    <div class="kpi kpi-green"><span class="kpi-label">Perfiles completos</span><span class="kpi-value">{{ resumen.completos }}<small> / {{ resumen.total }}</small></span>
+        <div class="progress ok" style="margin-top:6px;"><span style="width: {{ resumen.porcentaje }}%"></span></div></div>
+    <div class="kpi kpi-gold"><span class="kpi-label">Validaciones pendientes</span><span class="kpi-value">{{ pendientes }}</span><span class="kpi-sub">grado, colegiatura o licencia</span></div>
+</div>
+
+<div class="pills">
+    <a class="pill {{ 'active' if not filtro }}" href="{{ url_for('perfiles.index') }}">Todos</a>
+    <a class="pill {{ 'active' if filtro == 'incompletos' }}" href="{{ url_for('perfiles.index', filtro='incompletos') }}">Perfil incompleto</a>
+    <a class="pill {{ 'active' if filtro == 'prelacion' }}" href="{{ url_for('perfiles.index', filtro='prelacion') }}">Prelación incompleta</a>
+</div>
+<div class="db-card">
+    <div class="filters"><input type="search" class="form-control" style="max-width:280px;" placeholder="Buscar docente..." data-filter="tablaPerfiles"></div>
+    <div class="table-container">
+        <table id="tablaPerfiles">
+            <thead><tr><th>Docente</th><th>Categoría</th><th>Grado</th><th>Colegiatura</th><th>Líneas / temas</th><th>Disponibilidad</th><th>Falta</th><th></th></tr></thead>
+            <tbody>
+            {% for d in docentes %}
+                <tr>
+                    <td class="cell-title">{{ d.nombre_completo }}{% if d.es_autoridad %}<div class="cell-sub">{{ d.cargo_autoridad or 'Autoridad' }}</div>{% endif %}</td>
+                    <td class="small">{{ d.categoria_docente or '—' }}{% if d.condicion %}<div class="cell-sub">{{ d.condicion|capitalize }}</div>{% endif %}</td>
+                    <td class="small">{{ d.grado_academico or '—' }}</td>
+                    <td class="small">{{ d.colegiatura_anio or '—' }}</td>
+                    <td class="small">{{ d.lineas|length }} / {{ d.temas|length }}</td>
+                    <td>{% if d.de_licencia() %}<span class="badge badge-warning">De licencia</span>{% elif d.es_autoridad %}<span class="badge badge-secondary">Autoridad</span>{% else %}<span class="badge badge-success">Disponible</span>{% endif %}</td>
+                    <td class="small" style="color:var(--warning);">{{ (d.faltantes_perfil() + d.faltantes_prelacion())|unique|join(', ') or '' }}</td>
+                    <td><a class="btn btn-xs" href="{{ url_for('perfiles.editar', docente_id=d.id) }}">Editar</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="8" class="muted">Sin docentes en este filtro.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<p class="small muted mt">También puede cargar categoría, condición, año de ingreso y colegiatura con un Excel desde <a href="{{ url_for('importacion.index') }}">Proceso de evaluación → Docentes del semestre</a>.</p>
+{% endblock %}
