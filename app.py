@@ -87,11 +87,35 @@ def _registrar_hooks(app):
 
     @app.context_processor
     def inject_globals():
-        return {
+        datos = {
             "session_semestre_id": session.get("semestre_id"),
             "session_semestre_codigo": session.get("semestre_codigo"),
             "anio_actual": datetime.now().year,
+            "nav_pendientes_produccion": 0,
+            "nav_tesis_pendientes": 0,
         }
+        if current_user.is_authenticated:
+            datos.update(_contadores_menu())
+        return datos
+
+    def _contadores_menu():
+        """Insignias del menu lateral: registros por validar y dictamenes pendientes."""
+        from models import Capacitacion, Investigacion, Tesis, TesisMiembro
+
+        if current_user.es_gestion:
+            return {"nav_pendientes_produccion":
+                    Capacitacion.query.filter_by(estado_validacion="pendiente").count()
+                    + Investigacion.query.filter_by(estado_validacion="pendiente").count()}
+        if current_user.es_docente:
+            return {"nav_tesis_pendientes": (
+                TesisMiembro.query.join(Tesis)
+                .filter(TesisMiembro.docente_id == current_user.docente_id,
+                        TesisMiembro.rol == "dictaminante",
+                        TesisMiembro.estado_revision == "pendiente",
+                        Tesis.estado.notin_(("sustentada", "anulada")),
+                        Tesis.versiones.any())
+                .count())}
+        return {}
 
     @app.after_request
     def cabeceras_seguridad(resp):
